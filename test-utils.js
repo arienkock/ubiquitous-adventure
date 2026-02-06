@@ -14,9 +14,14 @@ export function addEmployees(state, count, role, productivity, onboarded) {
 }
 
 export function runTests(...tests) {
+    const includeTests = new URLSearchParams(window.location.search).get("tests")?.split(",") || [];
     createBaseHTML()
     try {
         tests.forEach(test => {
+            if (includeTests.length > 0 && !includeTests.includes(test.name)) {
+                createTestResultHTML(test.name, null);
+                return;
+            }
             try {
                 const state = JSON.parse(JSON.stringify(initialState));
                 test(state);
@@ -35,10 +40,15 @@ export function runTests(...tests) {
     }
 }
 function createTestResultHTML(testName, passed, error) {
+    const includeTests = new URLSearchParams(window.location.search).get("tests")?.split(",") || [];
     const testResultHTML = `
-    <div class="test-result ${passed ? "passed" : "failed"}">
+    <div class="test-result ${passed === null ? "skipped" : passed ? "passed" : "failed"}">
     <h2>${testName}</h2>
-    <p>${passed ? "Passed" : "Failed"}</p>
+    <p>
+    <a href="/test?tests=${testName}">Only</a>
+    <a href="/test?tests=${includeTests},${testName}">Include</a>
+    </p>
+    <p>${passed === null ? "Skipped" : passed ? "Passed" : "Failed"}</p>
     <p>${error ? error.message : ""}</p>
     <pre>${error ? error.stack.split("\n").filter(line => !line.includes("test-utils.js")).join("\n") : ""}</pre>
     </div>
@@ -70,10 +80,16 @@ function createBaseHTML() {
     .test-result.failed {
     background-color: #f8d7da;
     }
+    .test-result.skipped {
+    background-color: #e2e3e5;
+    }
     </style>
     </head>
     <body>
     <h1>Tests</h1>
+    <p>
+    <a href="/test">Run all</a>
+    </p>
     <div id="test-results"></div>
     </body>
     </html>
