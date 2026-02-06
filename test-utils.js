@@ -41,9 +41,10 @@ export function runTests(...tests) {
 }
 function createTestResultHTML(testName, passed, error) {
     const includeTests = new URLSearchParams(window.location.search).get("tests")?.split(",") || [];
+    const testDisplayName = testName.replace(/([A-Z])/g, ' $1').trim().toLowerCase().replace(/\b\w/g, char => char.toUpperCase());
     const testResultHTML = `
     <div class="test-result ${passed === null ? "skipped" : passed ? "passed" : "failed"}">
-    <h2>${testName}</h2>
+    <h2>${testDisplayName}</h2>
     <p>
     <a href="/test?tests=${testName}">Only</a>
     <a href="/test?tests=${includeTests},${testName}">Include</a>

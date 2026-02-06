@@ -82,6 +82,7 @@ const employeeZero = {
 export function initializeState(state, random) {
     random = random || Math.random;
     Object.assign(state, initialState);
+    state.employees = [];
     state.cash = initialState.STARTING_CASH;
     state.technicalDebtTarget = TECH_DEBT_TARGET_MIN;
     state.HIDDEN_PRODUCT_MARKET_FIT_SCORE = random()
@@ -105,6 +106,7 @@ export function gameTick(state) {
     state.userCount += calculateNewUsers(state);
     state.userCount -= calculateChurn(state);
     state.cash += calculateIncome(state);
+    state.cash -= calculateSalaryAndSalesSpend(state);
     // development
     const output = calculateOutput(state);
     state.productMaturity += output
@@ -139,6 +141,12 @@ export function calculateOutput(state) {
 
 function calculateIncome(state) {
     return state.productPrice * state.userCount;
+}
+
+function calculateSalaryAndSalesSpend(state) {
+    return state.employees.reduce((acc, employee) => {
+        return acc + employee.salary;
+    }, 0) + state.salesSpend;
 }
 
 export function calculateEmployeeProductivity(state, employee) {

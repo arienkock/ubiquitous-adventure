@@ -55,7 +55,6 @@ function testLaunchMaturity(state) {
 
     for (let i = 0; i < 12; i++) {
         gameTick(state);
-        console.log(state.productMaturity, state.launchMaturity);
         // After 2 months, the product should be launched and users should start coming in
         if (i > 2) {
             expect(state.userCount).toBeGreaterThan(0);
@@ -86,7 +85,6 @@ function testOnBoardingDependsOnMaintainabilityScore(state) {
     const onboardedInMonths2 = countMonthsUntilOnboarded(state);
 
     expect(onboardedInMonths2).toBeGreaterThan(onboardedInMonths1);
-    console.log(onboardedInMonths1, onboardedInMonths2);
 }
 
 function countMonthsUntilOnboarded(state) {
@@ -119,11 +117,24 @@ function testMaintainabilityScoreDependsOnTechnicalDebtTarget(state) {
     expect(maintainabilityScore2).toBeLessThan(maintainabilityScore1);
 }
 
+function testCashReducedBySalaryAndSalesSpend(state) {
+    initializeState(state, () => 0.5);
+    state.cash = 100000;
+    state.salesSpend = 1000;
+    state.launchMaturity = 0.8;
+    addEmployees(state, 2, roles.DEVELOPER, 1);
+    for (let i = 0; i < 3; i++) {
+        gameTick(state);
+    }
+    expect(state.cash).toBe(100000 - (7000 * 3));
+}
+
 runTests(
     testMaturityEvolution, 
     testCalculateEmployeeProductivity,
     testOutputCalculation,
     testLaunchMaturity,
     testOnBoardingDependsOnMaintainabilityScore,
-    testMaintainabilityScoreDependsOnTechnicalDebtTarget
+    testMaintainabilityScoreDependsOnTechnicalDebtTarget,
+    testCashReducedBySalaryAndSalesSpend
 );
