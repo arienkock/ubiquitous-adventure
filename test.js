@@ -1,4 +1,4 @@
-import { gameTick, roles, calculateEmployeeProductivity, calculateOutput } from './state.js';
+import { gameTick, roles, calculateEmployeeProductivity, calculateOutput, initializeState } from './state.js';
 import { addEmployees, expect, runTests } from './test-utils.js';
 
 
@@ -29,6 +29,7 @@ function testMaturityEvolution(state) {
 
 function testCalculateEmployeeProductivity(state) {
     addEmployees(state, 1, roles.DEVELOPER, 1);
+    state.productMaturity = 0.5; // because 0 maturity means green field, means full productivity from the beginning
     const employee = state.employees[0];
     expect(calculateEmployeeProductivity(state, employee)).toBe(0);
     gameTick(state);
@@ -45,6 +46,25 @@ function testCalculateEmployeeProductivity(state) {
     expect(calculateEmployeeProductivity(state, employee)).toBe(employee.baseProductivity * employee.motivation);
 }
 
+function testLaunchMaturity(state) {
+    initializeState(state, () => 0.5);
+    state.salesSpend = 1000;
+    expect(state.launchMaturity).toBeGreaterThan(0);
+    expect(state.launchMaturity).toBeLessThan(1);
+    addEmployees(state, 1, roles.DEVELOPER, 0.8);
+
+    for (let i = 0; i < 12 * 5; i++) {
+        gameTick(state);
+        console.log(state.productMaturity, state.launchMaturity);
+        // After 4 months, the product should be launched and users should start coming in
+        if (i > 4) {
+            expect(state.userCount).toBeGreaterThan(0);
+        } else {
+            expect(state.userCount).toBe(0);
+        }
+    }
+}
+
 function testOutputCalculation(state) {
     expect(calculateOutput(state)).toBe(0);
     addEmployees(state, 7, roles.DEVELOPER, 1);
@@ -55,5 +75,6 @@ function testOutputCalculation(state) {
 runTests(
     testMaturityEvolution, 
     testCalculateEmployeeProductivity,
-    testOutputCalculation
+    testOutputCalculation,
+    testLaunchMaturity
 );

@@ -60,10 +60,11 @@ export const initialState = Object.freeze({
     cash: null,
     // increases as development progresses
     productMaturity: 0, // 0-1
-    qualityScore: 1, // 0-1
-    maintainabilityScore: 1, // 0-1
+    qualityScore: 0.9, // 0-0.9
+    maintainabilityScore: 1, // 0.1-1
     // affects quality score
     technicalDebtTarget: TECH_DEBT_TARGET_MIN,
+    launchMaturity: null, // 0-1
     customerAcquisitionCost: null,
     salesSpend: 0,
     employees: [],
@@ -78,14 +79,14 @@ const employeeZero = {
     role: roles.DEVELOPER
 }
 
-function initializeState(state, random) {
+export function initializeState(state, random) {
     random = random || Math.random;
     Object.assign(state, initialState);
     state.cash = initialState.STARTING_CASH;
     state.technicalDebtTarget = TECH_DEBT_TARGET_MIN;
     state.HIDDEN_PRODUCT_MARKET_FIT_SCORE = random()
     state.customerAcquisitionCost = state.HIDDEN_PRODUCT_MARKET_FIT_SCORE * 250 + 50;
-    
+    state.launchMaturity = random() * 0.05 + 0.01
 }
 
 
@@ -109,12 +110,15 @@ export function gameTick(state) {
 }
 
 function calculateNewUsers(state) {
+    if (state.productMaturity < state.launchMaturity) {
+        return 0;
+    }
     return Math.floor(state.salesSpend / state.customerAcquisitionCost);
 }
 
 function calculateChurn(state) {
     const churnRate = 1 - state.productMaturity * state.qualityScore;
-    return Math.floor(state.userCount * churnRate);
+    return Math.max(0, Math.floor(state.userCount * churnRate));
 }
 
 export function calculateOutput(state) {
@@ -139,7 +143,7 @@ export function calculateEmployeeProductivity(state, employee) {
         // The more mature the product, the slower the onboarding
         // The lower the maintainabilityScore, the slower the onboarding
         let onBoardingPenaltyFactor = 1;
-        const expecteOnboardingMonths = MAX_ONBOARDING_MONTHS_AT_MATURITY_1 * (1 - (state.productMaturity * state.maintainabilityScore));
+        const expecteOnboardingMonths = (MAX_ONBOARDING_MONTHS_AT_MATURITY_1 * state.productMaturity) / state.maintainabilityScore;
         if (monthsSinceHire > expecteOnboardingMonths) {
             onBoardingPenaltyFactor = 1;
         } else {
