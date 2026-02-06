@@ -1,1 +1,1 @@
-// ES6 module entrypoint
+import { state } from './state.js';
