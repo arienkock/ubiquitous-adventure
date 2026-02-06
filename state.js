@@ -45,7 +45,7 @@ const COMMUNICATION_OVERHEAD_FACTOR = 1 / 7;
 const MIN_ONBOARDING_MONTHS = 1;
 const MAX_ONBOARDING_MONTHS_AT_MATURITY_1 = 12;
 
-const MATURITY_OUTPUT_DROPOFF_FACTOR = 700;
+const MATURITY_OUTPUT_DROPOFF_FACTOR = 300;
 const BASE_OUTPUT_DROPOFF_FACTOR = 100;
 
 export const initialState = Object.freeze({
@@ -127,8 +127,7 @@ export function calculateOutput(state) {
         return acc + calculateEmployeeProductivity(state, employee);
     }, 0);
     const n = state.employees.length;
-    const netOutput = collectiveProductivity// - (COMMUNICATION_OVERHEAD_FACTOR * n * (n - 1)) / 2;
-
+    const netOutput = collectiveProductivity - (COMMUNICATION_OVERHEAD_FACTOR * n * (n - 1)) / 2;
     return netOutput / (BASE_OUTPUT_DROPOFF_FACTOR + MATURITY_OUTPUT_DROPOFF_FACTOR * state.productMaturity);
 }
 

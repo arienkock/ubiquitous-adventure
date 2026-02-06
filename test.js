@@ -99,10 +99,29 @@ function countMonthsUntilOnboarded(state) {
     return months;
 }
 
+function testMaintainabilityScoreDependsOnTechnicalDebtTarget(state) {
+    initializeState(state, () => 0.5);
+    state.technicalDebtTarget = 0.3;
+    addEmployees(state, 1, roles.DEVELOPER, 1);
+    for (let i = 0; i < 12; i++) {
+        gameTick(state);
+    }
+    const maintainabilityScore1 = state.maintainabilityScore;
+    initializeState(state, () => 0.5);
+    state.technicalDebtTarget = 0.6;
+    addEmployees(state, 1, roles.DEVELOPER, 1);
+    for (let i = 0; i < 12; i++) {
+        gameTick(state);
+    }
+    const maintainabilityScore2 = state.maintainabilityScore;
+    expect(maintainabilityScore2).toBeLessThan(maintainabilityScore1);
+}
+
 runTests(
     testMaturityEvolution, 
     testCalculateEmployeeProductivity,
     testOutputCalculation,
     testLaunchMaturity,
-    testOnBoardingDependsOnMaintainabilityScore
+    testOnBoardingDependsOnMaintainabilityScore,
+    testMaintainabilityScoreDependsOnTechnicalDebtTarget
 );
