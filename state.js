@@ -137,8 +137,8 @@ function calculateIncome(state) {
 }
 
 export function calculateEmployeeProductivity(state, employee) {
-    if (state.monthNumber - employee.hiredInMonth > 0) {
-        const monthsSinceHire = state.monthNumber - employee.hiredInMonth;
+    const monthsSinceHire = state.monthNumber - employee.hiredInMonth;
+    if (monthsSinceHire > 0) {
         // High performers onboard faster
         // The more mature the product, the slower the onboarding
         // The lower the maintainabilityScore, the slower the onboarding

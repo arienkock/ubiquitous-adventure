@@ -72,9 +72,37 @@ function testOutputCalculation(state) {
     expect(calculateOutput(state)).toBeGreaterThan(0);
 }
 
+function testOnBoardingDependsOnMaintainabilityScore(state) {
+    initializeState(state, () => 0.5);
+    state.maintainabilityScore = 0.9;
+    addEmployees(state, 1, roles.DEVELOPER, 1);
+    const onboardedInMonths1 = countMonthsUntilOnboarded(state);
+    initializeState(state, () => 0.5);
+
+    state.maintainabilityScore = 0.2;
+    addEmployees(state, 1, roles.DEVELOPER, 1);
+    const onboardedInMonths2 = countMonthsUntilOnboarded(state);
+
+    expect(onboardedInMonths2).toBeGreaterThan(onboardedInMonths1);
+    console.log(onboardedInMonths1, onboardedInMonths2);
+}
+
+function countMonthsUntilOnboarded(state) {
+    let months = 0;
+    while (calculateEmployeeProductivity(state, state.employees[0]) < state.employees[0].baseProductivity * state.employees[0].motivation && months < 1000) {
+        gameTick(state);
+        months++;
+    }
+    if (months >= 1000) {
+        throw new Error("Onboarding took too long");
+    }
+    return months;
+}
+
 runTests(
     testMaturityEvolution, 
     testCalculateEmployeeProductivity,
     testOutputCalculation,
-    testLaunchMaturity
+    testLaunchMaturity,
+    testOnBoardingDependsOnMaintainabilityScore
 );
