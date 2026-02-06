@@ -46,7 +46,7 @@ const MIN_ONBOARDING_MONTHS = 1;
 const MAX_ONBOARDING_MONTHS_AT_MATURITY_1 = 12;
 
 const MATURITY_OUTPUT_DROPOFF_FACTOR = 300;
-const BASE_OUTPUT_DROPOFF_FACTOR = 100;
+const BASE_OUTPUT_DROPOFF_FACTOR = 50;
 
 export const initialState = Object.freeze({
     // immutable state that does not evolve during the game
@@ -106,7 +106,13 @@ export function gameTick(state) {
     state.userCount -= calculateChurn(state);
     state.cash += calculateIncome(state);
     // development
-    state.productMaturity += calculateOutput(state);
+    const output = calculateOutput(state);
+    state.productMaturity += output
+    state.maintainabilityScore = calculateMaintainabilityScore(state);
+}
+
+function calculateMaintainabilityScore(state) {
+    return state.maintainabilityScore * (1 - (state.technicalDebtTarget / 10));
 }
 
 function calculateNewUsers(state) {
@@ -128,7 +134,7 @@ export function calculateOutput(state) {
     }, 0);
     const n = state.employees.length;
     const netOutput = collectiveProductivity - (COMMUNICATION_OVERHEAD_FACTOR * n * (n - 1)) / 2;
-    return netOutput / (BASE_OUTPUT_DROPOFF_FACTOR + MATURITY_OUTPUT_DROPOFF_FACTOR * state.productMaturity);
+    return (netOutput * state.maintainabilityScore) / (BASE_OUTPUT_DROPOFF_FACTOR + MATURITY_OUTPUT_DROPOFF_FACTOR * state.productMaturity);
 }
 
 function calculateIncome(state) {

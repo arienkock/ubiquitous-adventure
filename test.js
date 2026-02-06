@@ -53,11 +53,11 @@ function testLaunchMaturity(state) {
     expect(state.launchMaturity).toBeLessThan(1);
     addEmployees(state, 1, roles.DEVELOPER, 0.8);
 
-    for (let i = 0; i < 12 * 5; i++) {
+    for (let i = 0; i < 12; i++) {
         gameTick(state);
         console.log(state.productMaturity, state.launchMaturity);
-        // After 4 months, the product should be launched and users should start coming in
-        if (i > 4) {
+        // After 2 months, the product should be launched and users should start coming in
+        if (i > 2) {
             expect(state.userCount).toBeGreaterThan(0);
         } else {
             expect(state.userCount).toBe(0);
@@ -75,11 +75,13 @@ function testOutputCalculation(state) {
 function testOnBoardingDependsOnMaintainabilityScore(state) {
     initializeState(state, () => 0.5);
     state.maintainabilityScore = 0.9;
+    state.productMaturity = 0.2;
     addEmployees(state, 1, roles.DEVELOPER, 1);
     const onboardedInMonths1 = countMonthsUntilOnboarded(state);
-    initializeState(state, () => 0.5);
 
+    initializeState(state, () => 0.5);
     state.maintainabilityScore = 0.2;
+    state.productMaturity = 0.2;
     addEmployees(state, 1, roles.DEVELOPER, 1);
     const onboardedInMonths2 = countMonthsUntilOnboarded(state);
 
