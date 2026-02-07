@@ -44,8 +44,10 @@ const TECH_DEBT_TARGET_MAX = 0.9;
 const COMMUNICATION_OVERHEAD_FACTOR = 1 / 7;
 const MIN_ONBOARDING_MONTHS = 1;
 const MAX_ONBOARDING_MONTHS_AT_MATURITY_1 = 12;
+// Magic constant where calculation behaves as it does now
+const OUTPUT_CONSTANT_AFFECTING_MAINTAINABILITY = 10; 
 
-const MATURITY_OUTPUT_DROPOFF_FACTOR = 300;
+const MATURITY_OUTPUT_DROPOFF_FACTOR = 400;
 const BASE_OUTPUT_DROPOFF_FACTOR = 50;
 
 export const initialState = Object.freeze({
@@ -100,6 +102,18 @@ function getRandomName(exclude = []) {
     return candidate;
 }
 
+export function addRandomDeveloper(state) {
+    const existingNames = state.employees.map((e) => e.name);
+    state.employees.push({
+        name: getRandomName(existingNames),
+        baseProductivity: Math.random() * 1.2 - 0.2, // -0.2 to +1
+        motivation: Math.random(),
+        hiredInMonth: state.monthNumber,
+        salary: 3000,
+        role: roles.DEVELOPER,
+    });
+}
+
 export function gameTick(state) {
     state.monthNumber++;
     // sales
@@ -110,11 +124,19 @@ export function gameTick(state) {
     // development
     const output = calculateOutput(state);
     state.productMaturity += output
-    state.maintainabilityScore = calculateMaintainabilityScore(state);
+    state.maintainabilityScore = calculateMaintainabilityScore(state, output);
 }
 
-function calculateMaintainabilityScore(state) {
-    return state.maintainabilityScore * (1 - (state.technicalDebtTarget / 10));
+function calculateMaintainabilityScore(state, output) {
+    // If output is 0, maintainability score stays unchanged
+    if (output === 0) return state.maintainabilityScore;
+
+    // As output increases from 0 to OUTPUT_CONSTANT_AFFECTING_MAINTAINABILITY, blend linearly
+    // 0: fully unchanged, OUTPUT_CONSTANT_AFFECTING_MAINTAINABILITY: fully current formula
+    const blend = Math.min(1, Math.max(0, output / OUTPUT_CONSTANT_AFFECTING_MAINTAINABILITY));
+    const unchanged = state.maintainabilityScore;
+    const calculated = state.maintainabilityScore * (1 - (state.technicalDebtTarget / 10));
+    return unchanged * (1 - blend) + calculated * blend;
 }
 
 function calculateNewUsers(state) {
