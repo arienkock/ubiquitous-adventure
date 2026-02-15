@@ -154,17 +154,17 @@ function bindNumberControl(state, inputId, minusId, plusId, key, min, max, step,
 function pushHistoryEntry(month, deltaCash, deltaUsers) {
   const cashStr = deltaCash >= 0 ? `+${formatCurrency(deltaCash)}` : formatCurrency(deltaCash);
   const userStr = deltaUsers >= 0 ? `+${deltaUsers}` : String(deltaUsers);
-  historyEntries.push(`Month ${month}: ${userStr} users, ${cashStr} cash flow`);
+  historyEntries.unshift(`Month ${month}: ${userStr} users, ${cashStr} cash flow`);
   if (historyEntries.length > HISTORY_MAX_ENTRIES) {
-    historyEntries.shift();
+    historyEntries.pop();
   }
 }
 
 function pushPivotHistoryEntry(month, deltaUsers) {
   const userStr = deltaUsers >= 0 ? `+${deltaUsers}` : String(deltaUsers);
-  historyEntries.push(`Month ${month}: Pivoted! ${userStr} users, reputation hit`);
+  historyEntries.unshift(`Month ${month}: Pivoted! ${userStr} users, reputation hit`);
   if (historyEntries.length > HISTORY_MAX_ENTRIES) {
-    historyEntries.shift();
+    historyEntries.pop();
   }
 }
 
