@@ -1,116 +1,37 @@
-// ES6 module entrypoint
+export const MAGIC_PRODUCTIVITY_DIVIDER = 333;
 
-export const roles = Object.freeze({
-    DEVELOPER: "developer",
-    QA: "qa",
-    PM: "pm",
-    DESIGNER: "designer",
-    SALES: "sales",
-});
-
-const firstNames = [
-    "Sequoia",
-    "Raphael",
-    "Snooty",
-    "Poroneia",
-    "Flaxon",
-    "Zilvi",
-    "Livyn",
-    "Ezro",
-    "Xenia",
-    "Thimble",
-    "Tigris",
-    "Bax",
-    "Ezra",
-]
-
-const lastNames = [
-    "Boopers",
-    "Raphalina",
-    "Xenturia",
-    "Tonks",
-    "Zeora",
-    "Boompkins",
-    "Serenda",
-    "Coops",
-    "Delvina",
-    "Lili",
-    "Yoto",
-    "Blansen"
-]
-
-const TECH_DEBT_TARGET_MIN = 0.1;
-const TECH_DEBT_TARGET_MAX = 0.9;
-const COMMUNICATION_OVERHEAD_FACTOR = 1 / 7;
-const MIN_ONBOARDING_MONTHS = 1;
-const MAX_ONBOARDING_MONTHS_AT_MATURITY_1 = 12;
-// Magic constant where calculation behaves as it does now
-const OUTPUT_CONSTANT_AFFECTING_MAINTAINABILITY = 10; 
-
-const MATURITY_OUTPUT_DROPOFF_FACTOR = 400;
-const BASE_OUTPUT_DROPOFF_FACTOR = 50;
-
-export const initialState = Object.freeze({
-    // immutable state that does not evolve during the game
-    HIDDEN_PRODUCT_MARKET_FIT_SCORE: 0,
-    MARKET_FIT_REVEAL_MONTH: 4,
-    STARTING_CASH: 10000,
-    // mutable state that evolves during the game
-    monthNumber: 1,
-    productPrice: 10,
-    userCount: 0,
-    cash: null,
-    // increases as development progresses
-    productMaturity: 0, // 0-1
-    qualityScore: 0.9, // 0-0.9
-    maintainabilityScore: 1, // 0.1-1
-    // affects quality score
-    technicalDebtTarget: TECH_DEBT_TARGET_MIN,
-    launchMaturity: null, // 0-1
-    customerAcquisitionCost: null,
-    salesSpend: 0,
-    employees: [],
-});
-
-const employeeZero = {
-    name: getRandomName(),
-    baseProductivity: 1, // -0.2 - +1
-    motivation: 1, // 0-1
-    hiredInMonth: 1,
-    salary: 3000,
-    role: roles.DEVELOPER
+export function createInitialState() {
+    return {
+        // time
+        monthNumber: 0,
+        // finances
+        userCount: 0,
+        salesSpend: 0,
+        productPrice: 100,
+        customerAcquisitionCost: 10,
+        cash: 50_0000,
+        // product properties
+        launchMaturity: 0.0135,
+        productMaturity: 0,
+        // development
+        technicalDebt: 0, // 0.1 to 0.5
+        cleanUpEffort: 0,
+        // team
+        employees: [{
+            salary: 3000,
+            baseProductivity: 1,
+            motivation: 1,
+        }],
+    }
 }
 
-export function initializeState(state, random) {
+export function addRandomDeveloper(state, random) {
     random = random || Math.random;
-    Object.assign(state, initialState);
-    state.employees = [];
-    state.cash = initialState.STARTING_CASH;
-    state.technicalDebtTarget = TECH_DEBT_TARGET_MIN;
-    state.HIDDEN_PRODUCT_MARKET_FIT_SCORE = random()
-    state.customerAcquisitionCost = state.HIDDEN_PRODUCT_MARKET_FIT_SCORE * 250 + 50;
-    state.launchMaturity = random() * 0.05 + 0.01
-}
-
-
-
-function getRandomName(exclude = []) {
-    let candidate;
-    do {
-        candidate = firstNames[Math.floor(Math.random() * firstNames.length)] + " " + lastNames[Math.floor(Math.random() * lastNames.length)];
-    } while (exclude.includes(candidate));
-    return candidate;
-}
-
-export function addRandomDeveloper(state) {
-    const existingNames = state.employees.map((e) => e.name);
+    const baseProductivity = random() * 1 + 0.5;
     state.employees.push({
-        name: getRandomName(existingNames),
-        baseProductivity: Math.random() * 1.2 - 0.2, // -0.2 to +1
-        motivation: Math.random(),
-        hiredInMonth: state.monthNumber,
-        salary: 3000,
-        role: roles.DEVELOPER,
+        salary: 3000 + Math.floor(random() * 5000 * baseProductivity),
+        baseProductivity,
+        motivation: 1,
     });
 }
 
@@ -124,19 +45,7 @@ export function gameTick(state) {
     // development
     const output = calculateOutput(state);
     state.productMaturity += output
-    state.maintainabilityScore = calculateMaintainabilityScore(state, output);
-}
-
-function calculateMaintainabilityScore(state, output) {
-    // If output is 0, maintainability score stays unchanged
-    if (output === 0) return state.maintainabilityScore;
-
-    // As output increases from 0 to OUTPUT_CONSTANT_AFFECTING_MAINTAINABILITY, blend linearly
-    // 0: fully unchanged, OUTPUT_CONSTANT_AFFECTING_MAINTAINABILITY: fully current formula
-    const blend = Math.min(1, Math.max(0, output / OUTPUT_CONSTANT_AFFECTING_MAINTAINABILITY));
-    const unchanged = state.maintainabilityScore;
-    const calculated = state.maintainabilityScore * (1 - (state.technicalDebtTarget / 10));
-    return unchanged * (1 - blend) + calculated * blend;
+    
 }
 
 function calculateNewUsers(state) {
@@ -147,45 +56,36 @@ function calculateNewUsers(state) {
 }
 
 function calculateChurn(state) {
-    const churnRate = 1 - state.productMaturity * state.qualityScore;
-    return Math.max(0, Math.floor(state.userCount * churnRate));
+    // TODO: Implement churn
+    return 0;
 }
 
 export function calculateOutput(state) {
-    // use Brooks' Law to calculate the performance factor
     const collectiveProductivity = state.employees.reduce((acc, employee) => {
         return acc + calculateEmployeeProductivity(state, employee);
     }, 0);
     const n = state.employees.length;
-    const netOutput = collectiveProductivity - (COMMUNICATION_OVERHEAD_FACTOR * n * (n - 1)) / 2;
-    return (netOutput * state.maintainabilityScore) / (BASE_OUTPUT_DROPOFF_FACTOR + MATURITY_OUTPUT_DROPOFF_FACTOR * state.productMaturity);
+    const communicationLines = (n * (n - 1)) / 2;
+    return (collectiveProductivity * (1 - state.technicalDebt) * (1 - communicationLines * 0.01)) / MAGIC_PRODUCTIVITY_DIVIDER;
 }
+
+
+
 
 function calculateIncome(state) {
     return state.productPrice * state.userCount;
 }
 
 function calculateSalaryAndSalesSpend(state) {
-    return state.employees.reduce((acc, employee) => {
+    const payroll = state.employees.reduce((acc, employee) => {
         return acc + employee.salary;
-    }, 0) + state.salesSpend;
+    }, 0)
+    if (state.productMaturity < state.launchMaturity) {
+        return payroll;
+    }
+    return payroll + state.salesSpend;
 }
 
 export function calculateEmployeeProductivity(state, employee) {
-    const monthsSinceHire = state.monthNumber - employee.hiredInMonth;
-    if (monthsSinceHire > 0) {
-        // High performers onboard faster
-        // The more mature the product, the slower the onboarding
-        // The lower the maintainabilityScore, the slower the onboarding
-        let onBoardingPenaltyFactor = 1;
-        const expecteOnboardingMonths = (MAX_ONBOARDING_MONTHS_AT_MATURITY_1 * state.productMaturity) / state.maintainabilityScore;
-        if (monthsSinceHire > expecteOnboardingMonths) {
-            onBoardingPenaltyFactor = 1;
-        } else {
-            onBoardingPenaltyFactor = monthsSinceHire / expecteOnboardingMonths;
-        }
-        return employee.baseProductivity * employee.motivation * onBoardingPenaltyFactor;
-    } else {
-        return 0;
-    }
+    return employee.baseProductivity * employee.motivation
 }

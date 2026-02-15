@@ -1,14 +1,11 @@
-import { initialState } from './state.js';
+import { createInitialState } from './state.js';
 
-export function addEmployees(state, count, role, productivity, onboarded) {
+export function addEmployees(state, count, productivity) {
     for (let i = 0; i < count; i++) {
         state.employees.push({
-            name: "Test Employee " + i,
             baseProductivity: productivity,
             motivation: 1,
-            hiredInMonth: onboarded ? state.monthNumber - 1000 : state.monthNumber,
             salary: 3000,
-            role: role,
         });
     }
 }
@@ -23,7 +20,8 @@ export function runTests(...tests) {
                 return;
             }
             try {
-                const state = JSON.parse(JSON.stringify(initialState));
+                const state = createInitialState();
+                state.employees = [];
                 test(state);
                 console.log("Test passed: " + test.name);
                 createTestResultHTML(test.name, true);
@@ -114,6 +112,16 @@ export function expect(value) {
             if (value >= expected) {
                 throw new Error("Expected value to be less than " + expected + ", but got " + value);
             }
-        }
+        },
+        toBeLessThanOrEqual: (expected) => {
+            if (value > expected) {
+                throw new Error("Expected value to be less than or equal to " + expected + ", but got " + value);
+            }
+        },
+        toBeGreaterThanOrEqual: (expected) => {
+            if (value < expected) {
+                throw new Error("Expected value to be greater than or equal to " + expected + ", but got " + value);
+            }
+        },
     }
 }

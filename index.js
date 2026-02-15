@@ -1,7 +1,5 @@
-import { initializeState } from './state.js';
 import { initDevUI } from './ui.js';
-
-const state = {};
-initializeState(state);
+import { createInitialState } from './state.js';
+const state = createInitialState();
 
 initDevUI(state);

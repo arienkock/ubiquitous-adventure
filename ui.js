@@ -5,12 +5,10 @@ const STAT_KEYS = [
   { key: 'userCount', label: 'User count' },
   { key: 'salesSpend', label: 'Sales spend' },
   { key: 'productMaturity', label: 'Product maturity' },
-  { key: 'qualityScore', label: 'Quality score' },
-  { key: 'maintainabilityScore', label: 'Maintainability score' },
 ];
 
 const TECH_DEBT_MIN = 0.1;
-const TECH_DEBT_MAX = 0.9;
+const TECH_DEBT_MAX = 0.5;
 
 function formatValue(value) {
   if (typeof value === 'number' && (value < 0 || value > 1 || (value !== 0 && value < 1 && value > 0))) {

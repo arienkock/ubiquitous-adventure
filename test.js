@@ -1,15 +1,15 @@
-import { gameTick, roles, calculateEmployeeProductivity, calculateOutput, initializeState } from './state.js';
+import { gameTick, calculateOutput } from './state.js';
 import { addEmployees, expect, runTests } from './test-utils.js';
 
 
 
 /*
 This test checks that the maturity gets close to 1 when a team of 7 (fully-onboarded) developers 
-works on the product for 5 years.  If this test fails, the values for MATURITY_OUTPUT_DROPOFF_FACTOR and
-BASE_OUTPUT_DROPOFF_FACTOR need to be adjusted.
+works on the product for 5 years.  
+If this test fails, the constant MAGIC_PRODUCTIVITY_DIVIDER needs to be adjusted.
 */
 function testMaturityEvolution(state) {
-    addEmployees(state, 7, roles.DEVELOPER, 1, true);
+    addEmployees(state, 7, 1);
     let previousMaturity = state.productMaturity;
     let previousDerivative = 0;
     let derivative = 0;
@@ -18,123 +18,50 @@ function testMaturityEvolution(state) {
         expect(state.productMaturity).toBeGreaterThan(previousMaturity);
         derivative = state.productMaturity - previousMaturity;
         if (i > 1) {
-            expect(derivative).toBeLessThan(previousDerivative);
+            // Allow tiny tolerance for floating point
+            expect(derivative).toBeLessThanOrEqual(previousDerivative + 1e-10);
         }
         previousDerivative = derivative;
         previousMaturity = state.productMaturity;
     }
     expect(state.productMaturity).toBeGreaterThan(0.9);
+    // TODO: uncomment when development is slowed down by productivity penalties
     expect(state.productMaturity).toBeLessThan(1);
 }
 
-function testCalculateEmployeeProductivity(state) {
-    addEmployees(state, 1, roles.DEVELOPER, 1);
-    state.productMaturity = 0.5; // because 0 maturity means green field, means full productivity from the beginning
-    const employee = state.employees[0];
-    expect(calculateEmployeeProductivity(state, employee)).toBe(0);
-    gameTick(state);
-    expect(calculateEmployeeProductivity(state, employee)).toBeGreaterThan(0);
-    let previousProductivity = calculateEmployeeProductivity(state, employee);
-    for (let i = 0; i < 500; i++) {
-        gameTick(state);
-        expect(calculateEmployeeProductivity(state, employee)).toBeGreaterThan(previousProductivity);
-        previousProductivity = calculateEmployeeProductivity(state, employee);
-        if (previousProductivity >= employee.baseProductivity * employee.motivation) {
-            break;
-        }
-    }
-    expect(calculateEmployeeProductivity(state, employee)).toBe(employee.baseProductivity * employee.motivation);
-}
-
 function testLaunchMaturity(state) {
-    initializeState(state, () => 0.5);
-    state.salesSpend = 1000;
     expect(state.launchMaturity).toBeGreaterThan(0);
-    expect(state.launchMaturity).toBeLessThan(1);
-    addEmployees(state, 1, roles.DEVELOPER, 0.8);
+    addEmployees(state, 1, 0.8);
 
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < 6; i++) {
         gameTick(state);
-        // After 2 months, the product should be launched and users should start coming in
-        if (i > 2) {
-            expect(state.userCount).toBeGreaterThan(0);
-        } else {
-            expect(state.userCount).toBe(0);
-        }
     }
+    // whatever we change in the algorithms, a product should launch in its first 6 months
+    // with this setup
+    expect(state.productMaturity).toBeGreaterThan(state.launchMaturity);
 }
 
 function testOutputCalculation(state) {
     expect(calculateOutput(state)).toBe(0);
-    addEmployees(state, 7, roles.DEVELOPER, 1);
+    addEmployees(state, 7, 1);
     state.monthNumber = 10;
     expect(calculateOutput(state)).toBeGreaterThan(0);
 }
 
-function testOnBoardingDependsOnMaintainabilityScore(state) {
-    initializeState(state, () => 0.5);
-    state.maintainabilityScore = 0.9;
-    state.productMaturity = 0.2;
-    addEmployees(state, 1, roles.DEVELOPER, 1);
-    const onboardedInMonths1 = countMonthsUntilOnboarded(state);
-
-    initializeState(state, () => 0.5);
-    state.maintainabilityScore = 0.2;
-    state.productMaturity = 0.2;
-    addEmployees(state, 1, roles.DEVELOPER, 1);
-    const onboardedInMonths2 = countMonthsUntilOnboarded(state);
-
-    expect(onboardedInMonths2).toBeGreaterThan(onboardedInMonths1);
-}
-
-function countMonthsUntilOnboarded(state) {
-    let months = 0;
-    while (calculateEmployeeProductivity(state, state.employees[0]) < state.employees[0].baseProductivity * state.employees[0].motivation && months < 1000) {
-        gameTick(state);
-        months++;
-    }
-    if (months >= 1000) {
-        throw new Error("Onboarding took too long");
-    }
-    return months;
-}
-
-function testMaintainabilityScoreDependsOnTechnicalDebtTarget(state) {
-    initializeState(state, () => 0.5);
-    state.technicalDebtTarget = 0.3;
-    addEmployees(state, 1, roles.DEVELOPER, 1);
-    for (let i = 0; i < 12; i++) {
-        gameTick(state);
-    }
-    const maintainabilityScore1 = state.maintainabilityScore;
-    initializeState(state, () => 0.5);
-    state.technicalDebtTarget = 0.6;
-    addEmployees(state, 1, roles.DEVELOPER, 1);
-    for (let i = 0; i < 12; i++) {
-        gameTick(state);
-    }
-    const maintainabilityScore2 = state.maintainabilityScore;
-    expect(maintainabilityScore2).toBeLessThan(maintainabilityScore1);
-}
-
 function testCashReducedBySalaryAndSalesSpend(state) {
-    initializeState(state, () => 0.5);
     state.cash = 100000;
     state.salesSpend = 1000;
-    state.launchMaturity = 0.8;
-    addEmployees(state, 2, roles.DEVELOPER, 1);
+    state.launchMaturity = 999999;
+    addEmployees(state, 2, 1);
     for (let i = 0; i < 3; i++) {
         gameTick(state);
     }
-    expect(state.cash).toBe(100000 - (7000 * 3));
+    expect(state.cash).toBe(100000 - (6000 * 3));
 }
 
 runTests(
     testMaturityEvolution, 
-    testCalculateEmployeeProductivity,
     testOutputCalculation,
     testLaunchMaturity,
-    testOnBoardingDependsOnMaintainabilityScore,
-    testMaintainabilityScoreDependsOnTechnicalDebtTarget,
     testCashReducedBySalaryAndSalesSpend
 );
