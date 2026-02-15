@@ -1,4 +1,4 @@
-import { gameTick, calculateOutput, calculateEmployeeProductivity, calculateDevelopmentAllocation, applyTechnicalDebt, calculateChurn, calculateChurnRate, applyReputationDrift, calculateOrganicUsers, applyMotivationDrift, MAGIC_PRODUCTIVITY_DIVIDER } from './state.js';
+import { createInitialState, gameTick, calculateOutput, calculateEmployeeProductivity, calculateDevelopmentAllocation, applyTechnicalDebt, calculateChurn, calculateChurnRate, applyReputationDrift, calculateOrganicUsers, applyMotivationDrift, addUsers, getUserCount, getMRR, MAGIC_PRODUCTIVITY_DIVIDER } from './state.js';
 import { addEmployees, expect, runTests } from './test-utils.js';
 
 
@@ -97,13 +97,13 @@ function testTechDebtClampsAtMax(state) {
 // --- Churn ---
 
 function testChurnZeroWithNoUsers(state) {
-    state.userCount = 0;
+    state.userCohorts = [];
     state.technicalDebt = 0.5;
     expect(calculateChurn(state)).toBe(0);
 }
 
 function testChurnIncreasesWithTechDebt(state) {
-    state.userCount = 1000;
+    addUsers(state, 1000, 100);
     state.productPrice = 100;
     state.reputation = 0;
     state.technicalDebt = 0;
@@ -113,19 +113,19 @@ function testChurnIncreasesWithTechDebt(state) {
     expect(churnHigh).toBeGreaterThan(churnLow);
 }
 
-function testChurnIncreasesWithHighPrice(state) {
-    state.userCount = 1000;
+function testChurnUnaffectedByPrice(state) {
+    addUsers(state, 1000, 100);
     state.technicalDebt = 0;
     state.reputation = 0;
     state.productPrice = 100;
     const churnBase = calculateChurn(state);
     state.productPrice = 500;
-    const churnExpensive = calculateChurn(state);
-    expect(churnExpensive).toBeGreaterThan(churnBase);
+    const churnAfterPriceHike = calculateChurn(state);
+    expect(churnAfterPriceHike).toBe(churnBase);
 }
 
 function testReputationReducesChurn(state) {
-    state.userCount = 1000;
+    addUsers(state, 1000, 100);
     state.technicalDebt = 0;
     state.productPrice = 100;
     state.reputation = 0;
@@ -176,7 +176,7 @@ function testReputationClampsToRange(state) {
 function testOrganicUsersZeroPreLaunch(state) {
     state.productMaturity = 0;
     state.launchMaturity = 0.0135;
-    state.userCount = 1000;
+    addUsers(state, 1000, 100);
     state.reputation = 1.0;
     expect(calculateOrganicUsers(state)).toBe(0);
 }
@@ -184,7 +184,7 @@ function testOrganicUsersZeroPreLaunch(state) {
 function testOrganicUsersScaleWithReputationAndCount(state) {
     state.productMaturity = 1.0;
     state.launchMaturity = 0.0135;
-    state.userCount = 1000;
+    addUsers(state, 1000, 100);
 
     state.reputation = 0;
     expect(calculateOrganicUsers(state)).toBe(0);
@@ -327,6 +327,51 @@ function testTechDebtGrowsDuringGameTick(state) {
     expect(state.technicalDebt).toBeGreaterThan(debtBefore);
 }
 
+function testMarketWarmUpDelaysFirstUsers(state) {
+    addEmployees(state, 1, 1, 2);
+    state.productMaturity = 0.02;
+    state.launchMaturity = 0.0135;
+    state.marketReadyMonth = null;
+    state.salesSpend = 10000;
+    const randomZero = () => 0;
+    gameTick(state, randomZero);
+    expect(getUserCount(state)).toBe(0);
+    gameTick(state, randomZero);
+    expect(getUserCount(state)).toBe(0);
+    gameTick(state, randomZero);
+    expect(getUserCount(state)).toBeGreaterThan(0);
+}
+
+function testHigherPriceReducesNewUserAcquisition(state) {
+    const setup = (s) => {
+        addEmployees(s, 1, 1, 2);
+        s.productMaturity = 0.02;
+        s.marketReadyMonth = 0;
+        s.salesSpend = 10000;
+        s.reputation = 0;
+        s.technicalDebt = 0;
+    };
+    setup(state);
+    state.productPrice = 100;
+    gameTick(state);
+    const usersAtLowPrice = getUserCount(state);
+
+    const state2 = createInitialState();
+    state2.employees = [];
+    setup(state2);
+    state2.productPrice = 500;
+    gameTick(state2);
+    const usersAtHighPrice = getUserCount(state2);
+    expect(usersAtHighPrice).toBeLessThan(usersAtLowPrice);
+}
+
+function testCohortIncomeUsesSignupPrice(state) {
+    addUsers(state, 100, 50);
+    addUsers(state, 200, 100);
+    expect(getUserCount(state)).toBe(300);
+    expect(getMRR(state)).toBe(100 * 50 + 200 * 100);
+}
+
 function testSoloFounderSurvives18Months(state) {
     // Solo founder (1 employee from createInitialState, which runTests clears)
     // Add back a single founder-like employee
@@ -353,7 +398,7 @@ runTests(
     testTechDebtClampsAtMax,
     testChurnZeroWithNoUsers,
     testChurnIncreasesWithTechDebt,
-    testChurnIncreasesWithHighPrice,
+    testChurnUnaffectedByPrice,
     testReputationReducesChurn,
     testReputationImprovesWithMatureProduct,
     testReputationDegradesWithHighDebt,
@@ -370,5 +415,8 @@ runTests(
     testBankruptcyDetected,
     testMonthsEmployedIncrements,
     testTechDebtGrowsDuringGameTick,
+    testMarketWarmUpDelaysFirstUsers,
+    testHigherPriceReducesNewUserAcquisition,
+    testCohortIncomeUsesSignupPrice,
     testSoloFounderSurvives18Months,
 );

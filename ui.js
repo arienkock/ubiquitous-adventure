@@ -1,4 +1,4 @@
-import { gameTick, addRandomDeveloper, calculateOutput } from './state.js';
+import { gameTick, addRandomDeveloper, calculateOutput, getUserCount, getMRR } from './state.js';
 
 const TECH_DEBT_MIN = 0.1;
 const TECH_DEBT_MAX = 0.5;
@@ -44,12 +44,12 @@ function renderGaugeHTML(bars, invertColor) {
 function renderHeader(state) {
   const container = document.getElementById('dev-header');
   if (!container) return;
-  const mrr = state.productPrice * state.userCount;
+  const mrr = getMRR(state);
   const launched = state.productMaturity >= state.launchMaturity;
   container.innerHTML = `
     <div class="dev-header-stat"><span class="dev-header-label">Month</span><span class="dev-header-value">${state.monthNumber}</span></div>
     <div class="dev-header-stat"><span class="dev-header-label">Cash</span><span class="dev-header-value">${formatCurrency(state.cash)}</span></div>
-    <div class="dev-header-stat"><span class="dev-header-label">Users</span><span class="dev-header-value">${state.userCount}</span></div>
+    <div class="dev-header-stat"><span class="dev-header-label">Users</span><span class="dev-header-value">${getUserCount(state)}</span></div>
     <div class="dev-header-stat"><span class="dev-header-label">MRR</span><span class="dev-header-value">${formatCurrency(mrr)}</span></div>
     <span class="dev-launch-badge ${launched ? '' : 'pre-launch'}">${launched ? 'Launched' : 'Pre-launch'}</span>
   `;
@@ -241,9 +241,9 @@ export function initDevUI(state) {
 
   document.getElementById('dev-next-month-btn').addEventListener('click', () => {
     const cashBefore = state.cash;
-    const usersBefore = state.userCount;
+    const usersBefore = getUserCount(state);
     gameTick(state);
-    pushHistoryEntry(state.monthNumber, state.cash - cashBefore, state.userCount - usersBefore);
+    pushHistoryEntry(state.monthNumber, state.cash - cashBefore, getUserCount(state) - usersBefore);
     refreshAll(state);
   });
 

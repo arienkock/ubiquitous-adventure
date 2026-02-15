@@ -74,12 +74,13 @@ The noise is re-rolled each time the display updates, so it may flicker between 
 ```
 monthNumber          — Current month (0-indexed, advances each tick)
 cash                 — Player's bank balance ($)
-userCount            — Number of paying users
+userCohorts[]        — Array of { count, signupPrice }; each cohort pays its signup price (yearly subscription model)
 salesSpend           — Monthly sales/marketing budget (player-controlled)
-productPrice         — Monthly price per user (player-controlled, default $100)
-customerAcquisitionCost — Cost to acquire one user (base $10, modified by events/market)
+productPrice         — Monthly price for *new* users only (player-controlled, default $100)
+customerAcquisitionCost — Base cost to acquire one user (base $10, modified by events/market)
 launchMaturity       — Product maturity threshold to launch (fixed at 0.0135)
 productMaturity      — How complete the product is (0 to ~1, uncapped but diminishing)
+marketReadyMonth     — First month when paid acquisition works (null until launch, then launchMonth + random 2–5)
 technicalDebt        — Codebase messiness (0.0 to 0.5)
 technicalDebtTarget  — Player's desired tech debt level; team auto-allocates cleanup effort
 cleanUpEffort        — Fraction of dev effort going to debt reduction (derived)
@@ -108,12 +109,13 @@ Each turn represents **one month**. The player can adjust their ongoing decision
    - If `technicalDebt` is below the target, debt gradually increases from normal development.
 
 3. **Market Phase** — Users come and go.
-   - New users acquired: `floor(salesSpend / customerAcquisitionCost)` — only if product has launched (maturity ≥ launchMaturity).
+   - **Market warm-up:** After launch, a random 2–5 month delay before paid acquisition starts (sales spend is charged but no users yet).
+   - New users acquired: `floor(salesSpend / effectiveCAC)` — only if product launched and market ready. `effectiveCAC = customerAcquisitionCost × (productPrice / 100)` (higher price = harder to acquire).
    - Organic users: a small bonus based on reputation and existing user count (word of mouth).
-   - Churn: users leave based on churn rate (see Section 7.5).
+   - Churn: users leave based on churn rate (see Section 7.5). Price does *not* affect churn — existing users keep their signup price.
 
 4. **Finance Phase** — Money moves.
-   - Income: `productPrice × userCount`
+   - Income: sum of `cohort.count × cohort.signupPrice` for all cohorts (yearly subscription: each user pays the price they signed up at)
    - Expenses: total payroll + salesSpend (salesSpend only charged post-launch)
    - Cash is updated. If cash ≤ 0, the game ends in bankruptcy.
 
@@ -136,9 +138,10 @@ The player can perform these actions between ticks (or in response to cards):
 
 ### 6.2 Set Product Price
 - Adjustable in increments of $10 (min $10, max $500)
-- Higher price = more revenue per user but:
-  - Increases churn rate (price sensitivity)
-  - May reduce reputation if perceived as poor value
+- Affects **new users only**. Existing users pay the price they signed up at (yearly subscription model).
+- Higher price = more revenue per new user but:
+  - Reduces new user acquisition (effective CAC scales with price)
+  - Does not increase churn (existing users are locked in)
 
 ### 6.3 Set Tech Debt Target
 - A gauge from Low (0.1) to High (0.5) in 0.1 increments
@@ -173,8 +176,9 @@ The player can perform these actions between ticks (or in response to cards):
 
 **Monthly Income:**
 ```
-income = productPrice × userCount
+income = Σ (cohort.count × cohort.signupPrice)
 ```
+Each user cohort pays the price they signed up at. New users join at the current `productPrice`.
 
 **Monthly Expenses:**
 ```
@@ -281,11 +285,14 @@ This naturally caps effective team size. Beyond ~10 developers, adding more peop
 
 ### 7.5 User Acquisition & Churn
 
+**Market Warm-up:** After launch, paid acquisition is delayed by a random 2–5 months. Sales spend is charged but no users are acquired until the market is ready.
+
 **Paid Acquisition:**
 ```
-newPaidUsers = floor(salesSpend / customerAcquisitionCost)
+effectiveCAC = customerAcquisitionCost × (productPrice / 100)
+newPaidUsers = floor(salesSpend / effectiveCAC)
 ```
-Only active after product launch (productMaturity ≥ launchMaturity).
+Only active after product launch (productMaturity ≥ launchMaturity) and when `monthNumber ≥ marketReadyMonth`. Higher price makes acquisition harder.
 
 **Organic Acquisition (Word of Mouth):**
 ```
@@ -296,14 +303,14 @@ A good product brings in users for free. A bad one doesn't.
 
 **Churn:**
 ```
-churnRate = baseChurn + debtChurn + priceChurn - reputationBonus
+churnRate = baseChurn + debtChurn - reputationBonus
 baseChurn = 0.03                                    // 3% base monthly churn
 debtChurn = technicalDebt × 0.06                    // up to 3% extra from bugs
-priceChurn = max(0, (productPrice - 100) / 5000)    // penalty for high prices
 reputationBonus = reputation × 0.02                  // good rep reduces churn
 
 churnedUsers = floor(userCount × churnRate)
 ```
+Price does not affect churn — existing users pay their locked-in signup price.
 
 The player never sees the exact churn rate. They only observe user count going up or down and must infer what's happening.
 
@@ -465,7 +472,7 @@ The game has three implicit phases that change the flavor of cards and challenge
 - Communication overhead becomes a real constraint
 - **Milestone: 1,000 Users**
   - Guaranteed card: *"Series B Interest"* — Major funding opportunity.
-- **Milestone: $1M ARR** (userCount × productPrice × 12 ≥ 1,000,000)
+- **Milestone: $1M ARR** (MRR × 12 ≥ 1,000,000, where MRR = sum of cohort revenues)
   - Guaranteed card: *"Magazine Cover"* — Major reputation boost. Attracts top talent (better hiring pool).
 
 ---
@@ -486,7 +493,7 @@ There are three ways to "win," each representing a different founder philosophy:
 - The faster and bigger the exit, the higher the score.
 
 #### Path 2: The Rocket Ship (IPO)
-- Reach **$10M ARR** (`userCount × productPrice × 12 ≥ 10,000,000`).
+- Reach **$10M ARR** (MRR × 12 ≥ 10,000,000, where MRR = sum of cohort revenues).
 - Must also have **positive cash flow for 3 consecutive months**.
 - Triggers the *"IPO Bell"* event — game ends with a big score.
 

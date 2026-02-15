@@ -44,12 +44,15 @@ GAME_DESIGN.md  Game design document
 Pure logic with no DOM access. Exports:
 
 - `createInitialState()` — returns a plain object representing a new game.
-- `gameTick(state)` — advances the simulation by one month in 5 phases: Card (stub), Development, Market, Finance, Drift. Sets `state.bankrupt = true` on bankruptcy.
+- `gameTick(state, random?)` — advances the simulation by one month in 5 phases: Card (stub), Development, Market, Finance, Drift. Optional `random` for deterministic tests (e.g. market warm-up delay). Sets `state.bankrupt = true` on bankruptcy.
 - `addRandomDeveloper(state)` — adds a randomized employee.
+- `getUserCount(state)` — total paying users (derived from cohorts).
+- `getMRR(state)` — monthly recurring revenue (sum of cohort revenues).
+- `addUsers(state, count, price)` / `removeUsers(state, count)` — cohort operations for user acquisition and churn.
 - `calculateOutput(state)` — raw team output before feature/cleanup split.
 - `calculateDevelopmentAllocation(state, rawOutput)` — splits output into `{ featureOutput, cleanUpOutput }` based on tech debt vs target.
 - `applyTechnicalDebt(state, featureOutput, cleanUpOutput)` — grows/reduces tech debt from development.
-- `calculateChurnRate(state)` / `calculateChurn(state)` — user churn from debt, price, and reputation.
+- `calculateChurnRate(state)` / `calculateChurn(state)` — user churn from debt and reputation (price affects acquisition only, not churn).
 - `calculateOrganicUsers(state)` — word-of-mouth user acquisition post-launch.
 - `applyReputationDrift(state, churnRate, organicUsers)` — adjusts reputation based on product quality signals.
 - `applyMotivationDrift(state)` — background motivation changes (debt frustration, team size, tenure).

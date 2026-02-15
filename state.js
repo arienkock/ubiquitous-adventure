@@ -5,7 +5,7 @@ export function createInitialState() {
         // time
         monthNumber: 0,
         // finances
-        userCount: 0,
+        userCohorts: [],
         salesSpend: 0,
         productPrice: 100,
         customerAcquisitionCost: 10,
@@ -13,6 +13,7 @@ export function createInitialState() {
         // product properties
         launchMaturity: 0.0135,
         productMaturity: 0,
+        marketReadyMonth: null,
         // development
         technicalDebt: 0, // 0.0 to 0.5
         technicalDebtTarget: 0.3,
@@ -28,6 +29,45 @@ export function createInitialState() {
     }
 }
 
+export function getUserCount(state) {
+    return state.userCohorts.reduce((sum, c) => sum + c.count, 0);
+}
+
+export function addUsers(state, count, price) {
+    if (count <= 0) return;
+    const existing = state.userCohorts.find(c => c.signupPrice === price);
+    if (existing) {
+        existing.count += count;
+    } else {
+        state.userCohorts.push({ count, signupPrice: price });
+    }
+}
+
+export function removeUsers(state, count) {
+    const total = getUserCount(state);
+    if (count <= 0 || total === 0) return;
+    const toRemove = Math.min(count, total);
+
+    for (const cohort of state.userCohorts) {
+        const proportion = cohort.count / total;
+        const removeFromCohort = Math.floor(proportion * toRemove);
+        cohort.count -= removeFromCohort;
+    }
+
+    let removed = total - getUserCount(state);
+    if (removed < toRemove) {
+        for (const cohort of state.userCohorts) {
+            if (cohort.count > 0 && removed < toRemove) {
+                const extra = Math.min(cohort.count, toRemove - removed);
+                cohort.count -= extra;
+                removed += extra;
+            }
+        }
+    }
+
+    state.userCohorts = state.userCohorts.filter(c => c.count > 0);
+}
+
 export function addRandomDeveloper(state, random) {
     random = random || Math.random;
     const baseProductivity = random() * 1 + 0.5;
@@ -39,7 +79,8 @@ export function addRandomDeveloper(state, random) {
     });
 }
 
-export function gameTick(state) {
+export function gameTick(state, random) {
+    random = random || Math.random;
     state.monthNumber++;
 
     // Phase 1: Card Phase — skip (future work)
@@ -50,13 +91,20 @@ export function gameTick(state) {
     state.productMaturity += featureOutput;
     applyTechnicalDebt(state, featureOutput, cleanUpOutput);
 
+    // Detect launch transition and set market warm-up delay
+    if (state.productMaturity >= state.launchMaturity && state.marketReadyMonth === null) {
+        const delayMonths = Math.floor(random() * 4) + 2;
+        state.marketReadyMonth = state.monthNumber + delayMonths;
+    }
+
     // Phase 3: Market Phase
-    state.userCount += calculateNewUsers(state);
+    const newPaidUsers = calculateNewUsers(state);
+    if (newPaidUsers > 0) addUsers(state, newPaidUsers, state.productPrice);
     const organicUsers = calculateOrganicUsers(state);
-    state.userCount += organicUsers;
+    if (organicUsers > 0) addUsers(state, organicUsers, state.productPrice);
     const churnRate = calculateChurnRate(state);
-    state.userCount -= calculateChurn(state);
-    state.userCount = Math.max(0, state.userCount);
+    const churnedUsers = calculateChurn(state);
+    removeUsers(state, churnedUsers);
 
     // Phase 4: Finance Phase
     state.cash += calculateIncome(state);
@@ -77,7 +125,11 @@ function calculateNewUsers(state) {
     if (state.productMaturity < state.launchMaturity) {
         return 0;
     }
-    return Math.floor(state.salesSpend / state.customerAcquisitionCost);
+    if (state.marketReadyMonth !== null && state.monthNumber < state.marketReadyMonth) {
+        return 0;
+    }
+    const effectiveCAC = state.customerAcquisitionCost * (state.productPrice / 100);
+    return Math.floor(state.salesSpend / effectiveCAC);
 }
 
 export function calculateOrganicUsers(state) {
@@ -85,19 +137,18 @@ export function calculateOrganicUsers(state) {
         return 0;
     }
     const organicRate = 0.01 * state.reputation;
-    return Math.floor(state.userCount * organicRate);
+    return Math.floor(getUserCount(state) * organicRate);
 }
 
 export function calculateChurnRate(state) {
     const baseChurn = 0.03;
     const debtChurn = state.technicalDebt * 0.06;
-    const priceChurn = Math.max(0, (state.productPrice - 100) / 5000);
     const reputationBonus = state.reputation * 0.02;
-    return baseChurn + debtChurn + priceChurn - reputationBonus;
+    return baseChurn + debtChurn - reputationBonus;
 }
 
 export function calculateChurn(state) {
-    return Math.floor(state.userCount * calculateChurnRate(state));
+    return Math.floor(getUserCount(state) * calculateChurnRate(state));
 }
 
 export function calculateOutput(state) {
@@ -122,8 +173,12 @@ export function calculateDevelopmentAllocation(state, rawOutput) {
 
 
 
+export function getMRR(state) {
+    return state.userCohorts.reduce((sum, c) => sum + c.count * c.signupPrice, 0);
+}
+
 function calculateIncome(state) {
-    return state.productPrice * state.userCount;
+    return getMRR(state);
 }
 
 function calculateSalaryAndSalesSpend(state) {
