@@ -1,11 +1,12 @@
 import { createInitialState } from './state.js';
 
-export function addEmployees(state, count, productivity) {
+export function addEmployees(state, count, productivity, monthsEmployed = 0) {
     for (let i = 0; i < count; i++) {
         state.employees.push({
             baseProductivity: productivity,
             motivation: 1,
             salary: 3000,
+            monthsEmployed,
         });
     }
 }
@@ -121,6 +122,12 @@ export function expect(value) {
         toBeGreaterThanOrEqual: (expected) => {
             if (value < expected) {
                 throw new Error("Expected value to be greater than or equal to " + expected + ", but got " + value);
+            }
+        },
+        toBeCloseTo: (expected, precision = 10) => {
+            const epsilon = Math.pow(10, -precision);
+            if (Math.abs(value - expected) > epsilon) {
+                throw new Error("Expected value to be close to " + expected + " (±" + epsilon + "), but got " + value);
             }
         },
     }

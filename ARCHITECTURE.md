@@ -44,9 +44,16 @@ GAME_DESIGN.md  Game design document
 Pure logic with no DOM access. Exports:
 
 - `createInitialState()` — returns a plain object representing a new game.
-- `gameTick(state)` — advances the simulation by one month, mutating `state` in place.
+- `gameTick(state)` — advances the simulation by one month in 5 phases: Card (stub), Development, Market, Finance, Drift. Sets `state.bankrupt = true` on bankruptcy.
 - `addRandomDeveloper(state)` — adds a randomized employee.
-- Calculation helpers (`calculateOutput`, `calculateEmployeeProductivity`, etc.).
+- `calculateOutput(state)` — raw team output before feature/cleanup split.
+- `calculateDevelopmentAllocation(state, rawOutput)` — splits output into `{ featureOutput, cleanUpOutput }` based on tech debt vs target.
+- `applyTechnicalDebt(state, featureOutput, cleanUpOutput)` — grows/reduces tech debt from development.
+- `calculateChurnRate(state)` / `calculateChurn(state)` — user churn from debt, price, and reputation.
+- `calculateOrganicUsers(state)` — word-of-mouth user acquisition post-launch.
+- `applyReputationDrift(state, churnRate, organicUsers)` — adjusts reputation based on product quality signals.
+- `applyMotivationDrift(state)` — background motivation changes (debt frustration, team size, tenure).
+- `calculateEmployeeProductivity(state, employee)` — effective productivity with onboarding ramp-up.
 
 State is a single mutable object passed by reference. There is no immutability layer or store abstraction.
 
