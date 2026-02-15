@@ -1,6 +1,7 @@
 export const MAGIC_PRODUCTIVITY_DIVIDER = 333;
 
-export function createInitialState() {
+export function createInitialState(random) {
+    random = random || Math.random;
     return {
         // time
         monthNumber: 0,
@@ -14,6 +15,8 @@ export function createInitialState() {
         launchMaturity: 0.0135,
         productMaturity: 0,
         marketReadyMonth: null,
+        // market fit (hidden) — 0.1 to 1.0; initialized in [0.1, 0.5]
+        productMarketFit: 0.1 + random() * 0.4,
         // development
         technicalDebt: 0, // 0.0 to 0.5
         technicalDebtTarget: 0.3,
@@ -79,6 +82,33 @@ export function addRandomDeveloper(state, random) {
     });
 }
 
+export function pivot(state, random) {
+    random = random || Math.random;
+    const currentPMF = state.productMarketFit;
+    // 75% chance of improvement, 25% chance of regression
+    if (random() < 0.75) {
+        // Sample from (currentPMF, 1.0]
+        const range = 1.0 - currentPMF;
+        state.productMarketFit = range > 0
+            ? currentPMF + random() * range
+            : 1.0;
+    } else {
+        // Sample from [0.1, currentPMF)
+        const range = currentPMF - 0.1;
+        state.productMarketFit = range > 0
+            ? 0.1 + random() * range
+            : 0.1;
+    }
+    // Lose 80% of existing users
+    const usersToLose = Math.floor(getUserCount(state) * 0.8);
+    removeUsers(state, usersToLose);
+    // Reputation hit
+    state.reputation = Math.max(0, state.reputation - 0.15);
+    // Reset market warm-up (must re-establish market presence)
+    const delayMonths = Math.floor(random() * 4) + 2;
+    state.marketReadyMonth = state.monthNumber + delayMonths;
+}
+
 export function gameTick(state, random) {
     random = random || Math.random;
     state.monthNumber++;
@@ -121,14 +151,14 @@ export function gameTick(state, random) {
     }
 }
 
-function calculateNewUsers(state) {
+export function calculateNewUsers(state) {
     if (state.productMaturity < state.launchMaturity) {
         return 0;
     }
     if (state.marketReadyMonth !== null && state.monthNumber < state.marketReadyMonth) {
         return 0;
     }
-    const effectiveCAC = state.customerAcquisitionCost * (state.productPrice / 100);
+    const effectiveCAC = state.customerAcquisitionCost * (state.productPrice / 100) / state.productMarketFit;
     return Math.floor(state.salesSpend / effectiveCAC);
 }
 

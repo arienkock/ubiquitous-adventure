@@ -1,4 +1,4 @@
-import { gameTick, addRandomDeveloper, calculateOutput, getUserCount, getMRR } from './state.js';
+import { gameTick, addRandomDeveloper, pivot, calculateOutput, getUserCount, getMRR } from './state.js';
 
 const TECH_DEBT_MIN = 0.1;
 const TECH_DEBT_MAX = 0.5;
@@ -160,6 +160,14 @@ function pushHistoryEntry(month, deltaCash, deltaUsers) {
   }
 }
 
+function pushPivotHistoryEntry(month, deltaUsers) {
+  const userStr = deltaUsers >= 0 ? `+${deltaUsers}` : String(deltaUsers);
+  historyEntries.push(`Month ${month}: Pivoted! ${userStr} users, reputation hit`);
+  if (historyEntries.length > HISTORY_MAX_ENTRIES) {
+    historyEntries.shift();
+  }
+}
+
 function renderHistory() {
   const container = document.getElementById('dev-history');
   if (!container) return;
@@ -221,6 +229,7 @@ export function initDevUI(state) {
             <button type="button" id="dev-tech-debt-plus" class="dev-num-btn">+</button>
           </div>
         </div>
+        <button type="button" id="dev-pivot-btn" class="dev-add-dev-btn">Pivot</button>
       </div>
       <div id="dev-card-area" class="dev-card-area">Event cards will appear here</div>
       <div class="dev-team-panel">
@@ -250,6 +259,14 @@ export function initDevUI(state) {
   document.getElementById('dev-add-developer-btn').addEventListener('click', () => {
     addRandomDeveloper(state);
     refreshAll(state, false);
+  });
+
+  document.getElementById('dev-pivot-btn').addEventListener('click', () => {
+    const usersBefore = getUserCount(state);
+    pivot(state);
+    const usersAfter = getUserCount(state);
+    pushPivotHistoryEntry(state.monthNumber, usersAfter - usersBefore);
+    refreshAll(state, true);
   });
 
   const onRefresh = () => refreshAll(state, false);

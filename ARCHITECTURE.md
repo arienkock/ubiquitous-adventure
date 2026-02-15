@@ -43,13 +43,15 @@ GAME_DESIGN.md  Game design document
 
 Pure logic with no DOM access. Exports:
 
-- `createInitialState()` — returns a plain object representing a new game.
+- `createInitialState(random?)` — returns a plain object representing a new game. Optional `random` for deterministic PMF initialization.
 - `gameTick(state, random?)` — advances the simulation by one month in 5 phases: Card (stub), Development, Market, Finance, Drift. Optional `random` for deterministic tests (e.g. market warm-up delay). Sets `state.bankrupt = true` on bankruptcy.
+- `pivot(state, random?)` — re-rolls `productMarketFit` (75% chance of improvement), removes 80% of users, reduces reputation by 0.15, and resets `marketReadyMonth`.
 - `addRandomDeveloper(state)` — adds a randomized employee.
 - `getUserCount(state)` — total paying users (derived from cohorts).
 - `getMRR(state)` — monthly recurring revenue (sum of cohort revenues).
 - `addUsers(state, count, price)` / `removeUsers(state, count)` — cohort operations for user acquisition and churn.
 - `calculateOutput(state)` — raw team output before feature/cleanup split.
+- `calculateNewUsers(state)` — paid user acquisition based on sales spend, price, and product-market fit.
 - `calculateDevelopmentAllocation(state, rawOutput)` — splits output into `{ featureOutput, cleanUpOutput }` based on tech debt vs target.
 - `applyTechnicalDebt(state, featureOutput, cleanUpOutput)` — grows/reduces tech debt from development.
 - `calculateChurnRate(state)` / `calculateChurn(state)` — user churn from debt and reputation (price affects acquisition only, not churn).

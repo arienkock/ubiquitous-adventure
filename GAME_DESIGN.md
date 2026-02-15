@@ -65,6 +65,13 @@ The underlying float value maps to bars as follows (example for a 0-to-1 value):
 
 The noise is re-rolled each time the display updates, so it may flicker between adjacent values — reinforcing uncertainty.
 
+### Hidden Values (not displayed at all)
+Some values are intentionally kept completely invisible to the player. There is no gauge, no number — the player can only infer them from observable consequences.
+
+| Value | What it represents | How the player infers it |
+|-------|--------------------|--------------------------|
+| **Product Market Fit** | How well the product matches market demand (0.1 to 1.0) | Observing how many users sales spend actually delivers |
+
 ---
 
 ## 4. Game State
@@ -81,6 +88,7 @@ customerAcquisitionCost — Base cost to acquire one user (base $10, modified by
 launchMaturity       — Product maturity threshold to launch (fixed at 0.0135)
 productMaturity      — How complete the product is (0 to ~1, uncapped but diminishing)
 marketReadyMonth     — First month when paid acquisition works (null until launch, then launchMonth + random 2–5)
+productMarketFit     — Hidden; how well product matches demand (0.1 to 1.0, initialized randomly in [0.1, 0.5])
 technicalDebt        — Codebase messiness (0.0 to 0.5)
 technicalDebtTarget  — Player's desired tech debt level; team auto-allocates cleanup effort
 cleanUpEffort        — Fraction of dev effort going to debt reduction (derived)
@@ -110,7 +118,7 @@ Each turn represents **one month**. The player can adjust their ongoing decision
 
 3. **Market Phase** — Users come and go.
    - **Market warm-up:** After launch, a random 2–5 month delay before paid acquisition starts (sales spend is charged but no users yet).
-   - New users acquired: `floor(salesSpend / effectiveCAC)` — only if product launched and market ready. `effectiveCAC = customerAcquisitionCost × (productPrice / 100)` (higher price = harder to acquire).
+   - New users acquired: `floor(salesSpend / effectiveCAC)` — only if product launched and market ready. `effectiveCAC = customerAcquisitionCost × (productPrice / 100) / productMarketFit` (higher price or lower PMF = harder to acquire).
    - Organic users: a small bonus based on reputation and existing user count (word of mouth).
    - Churn: users leave based on churn rate (see Section 7.5). Price does *not* affect churn — existing users keep their signup price.
 
@@ -167,6 +175,26 @@ The player can perform these actions between ticks (or in response to cards):
 
 ### 6.6 Respond to Event Card
 - See Section 8
+
+### 6.7 Pivot
+A radical strategic move: change the product's direction to gamble for better product-market fit.
+
+**Effects (applied immediately):**
+- **Re-roll product-market fit:**
+  - 75% chance: new value sampled uniformly from (currentPMF, 1.0] (guaranteed improvement)
+  - 25% chance: new value sampled uniformly from [0.1, currentPMF) (guaranteed regression)
+  - If PMF is already at the floor (0.1), the regression case stays at 0.1
+- **Lose 80% of existing users** (removed proportionally from all cohorts — most customers don't want the new direction)
+- **Reputation -0.15** (clamped to 0; market sees instability)
+- **Market warm-up resets:** `marketReadyMonth` is set to `monthNumber + random(2–5)` (must re-establish market presence)
+
+**No direct cash cost** — the punishment comes from lost revenue (fewer paying users), market warm-up downtime (sales spend is charged but earns no users), and reputation damage.
+
+**Strategic considerations:**
+- Pivoting early (pre-launch, few users) is cheap — you lose little
+- Pivoting late (many users, high reputation) is devastating
+- Serial pivoting burns through cash and reputation, often leading to bankruptcy
+- The player can never see their PMF directly, so they must infer whether a pivot helped by observing subsequent acquisition rates
 
 ---
 
@@ -289,10 +317,10 @@ This naturally caps effective team size. Beyond ~10 developers, adding more peop
 
 **Paid Acquisition:**
 ```
-effectiveCAC = customerAcquisitionCost × (productPrice / 100)
+effectiveCAC = customerAcquisitionCost × (productPrice / 100) / productMarketFit
 newPaidUsers = floor(salesSpend / effectiveCAC)
 ```
-Only active after product launch (productMaturity ≥ launchMaturity) and when `monthNumber ≥ marketReadyMonth`. Higher price makes acquisition harder.
+Only active after product launch (productMaturity ≥ launchMaturity) and when `monthNumber ≥ marketReadyMonth`. Higher price makes acquisition harder. Low product-market fit dramatically increases the effective cost per user.
 
 **Organic Acquisition (Word of Mouth):**
 ```
@@ -560,11 +588,14 @@ These targets guide tuning. The game should be balanced so that:
 | Scenario | Expected Outcome |
 |----------|-----------------|
 | Solo founder, no hires, minimal sales spend | Can launch but grows very slowly. Survives ~24 months. |
-| 3-person team, moderate sales, balanced debt | Reaches ~200 users in 2 years. Can win via lifestyle path. |
+| 3-person team, moderate sales, balanced debt | Reaches ~100–200 users in 2 years depending on PMF. May need a pivot. Can win via lifestyle path. |
 | Aggressive hiring (8+), high sales spend | Either rockets to IPO in 3-4 years OR crashes from cash burn / debt / overhead. High risk, high reward. |
 | Neglect tech debt entirely | Fast early growth, then cascading crises after month 18. Usually fatal. |
 | Pure quality focus (low debt target) | Slow but very stable growth. Team is happy. Wins via lifestyle or late acquisition. |
 | Ignore team morale | Employees leave. Replacement cost (hiring + onboarding) creates a death spiral. |
+| Bad PMF, no pivot | Acquisition is expensive. Player burns cash on sales with little return. Bankruptcy likely unless they pivot or cut spending. |
+| Early pivot (pre-launch) | Cheap gamble — few users to lose. 75% chance of better PMF with minimal downside. |
+| Serial pivoting | Each pivot costs users and reputation. After 2-3 pivots, reputation is near zero and recovery is difficult. |
 
 ### Key Constants (tuning knobs)
 
@@ -573,7 +604,11 @@ These targets guide tuning. The game should be balanced so that:
 | `MAGIC_PRODUCTIVITY_DIVIDER` | 333 | Scales raw output so maturity approaches 1 over ~5 years |
 | Starting cash | $500,000 | ~18 months runway with a small team |
 | Base churn | 3%/month | Industry-realistic SaaS churn |
-| Base CAC | $10 | Cheap acquisition to start; events make it harder |
+| Base CAC | $10 | Base cost before PMF and price scaling |
+| Initial PMF range | [0.1, 0.5] | Most games start with poor-to-mediocre fit; effective CAC is 2–10× base |
+| Pivot improvement chance | 75% | Pivots are usually better, but not guaranteed |
+| Pivot user loss | 80% | Most users leave when the product direction changes |
+| Pivot reputation cost | -0.15 | Market penalizes instability |
 | Launch maturity | 0.0135 | Achievable in ~2-4 months with 1-2 devs |
 | Communication overhead | 1% per line | Caps effective team at ~10 devs |
 | Gauge noise | ±1 bar | Enough to create doubt, not enough to be useless |
