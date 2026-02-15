@@ -68,9 +68,10 @@ function testDevAllocationCleanupCapsAt50Percent(state) {
 
 function testTechDebtGrowsFromFeatureWork(state) {
     state.technicalDebt = 0.1;
+    state.productMaturity = 0;
     applyTechnicalDebt(state, 1.0, 0);
-    // debtGrowth = 1.0 * 0.05 = 0.05
-    expect(state.technicalDebt).toBeCloseTo(0.15);
+    // debtGrowth = rawFeatureEffort * 0.01 * (1 + maturity*5) = 1.0 * 0.01 * 1 = 0.01
+    expect(state.technicalDebt).toBeCloseTo(0.11);
 }
 
 function testTechDebtShrinksFromCleanup(state) {
@@ -89,8 +90,9 @@ function testTechDebtClampsAtZero(state) {
 
 function testTechDebtClampsAtMax(state) {
     state.technicalDebt = 0.48;
+    state.productMaturity = 0;
     applyTechnicalDebt(state, 10.0, 0);
-    // debtGrowth = 10.0 * 0.05 = 0.5, result would be 0.98
+    // debtGrowth = 10.0 * 0.01 * 1 = 0.1, result would be 0.58 -> clamped to 0.5
     expect(state.technicalDebt).toBe(0.5);
 }
 
@@ -259,9 +261,9 @@ function testMaturityEvolution(state) {
         expect(state.productMaturity).toBeGreaterThan(previousMaturity);
         previousMaturity = state.productMaturity;
     }
-    // With motivation drift from long tenure and tech debt dynamics,
-    // maturity won't reach 0.9 but should exceed 0.7
-    expect(state.productMaturity).toBeGreaterThan(0.7);
+    // With motivation drift from long tenure, tech debt dynamics, and quadratic penalty,
+    // maturity grows slower than before but should still exceed 0.5
+    expect(state.productMaturity).toBeGreaterThan(0.5);
     expect(state.productMaturity).toBeLessThan(1);
 }
 
@@ -385,6 +387,32 @@ function testSoloFounderSurvives18Months(state) {
     // Should survive at least 18 months burning only $3000/month salary
     expect(state.bankrupt !== true).toBe(true);
     expect(state.cash).toBeGreaterThan(0);
+}
+
+function testSoloDevWith100kStruggles(state) {
+    addEmployees(state, 1, 1, 0);
+    state.cash = 100_000;
+    state.salesSpend = 0;
+    state.productMarketFit = 0.3;
+    state.technicalDebtTarget = 0.5; // not managing debt
+    const random = () => 0.5; // deterministic for market warm-up
+
+    // Develop until launch
+    while (state.productMaturity < state.launchMaturity) {
+        gameTick(state, random);
+    }
+
+    // Debt should be meaningful by launch time
+    expect(state.technicalDebt).toBeGreaterThan(0.03);
+
+    // No paid acquisition — bootstrap scenario shows runway pressure
+    while (state.monthNumber < 24) {
+        gameTick(state, random);
+    }
+
+    // After 2 years: tech debt has compounded, cash is depleted
+    expect(state.technicalDebt).toBeGreaterThan(0.1);
+    expect(state.cash).toBeLessThan(60_000);
 }
 
 // --- Product Market Fit ---
@@ -524,6 +552,7 @@ runTests(
     testHigherPriceReducesNewUserAcquisition,
     testCohortIncomeUsesSignupPrice,
     testSoloFounderSurvives18Months,
+    testSoloDevWith100kStruggles,
     testPMFInitializedInRange,
     testPMFReducesNewUserAcquisition,
     testPivotRerollsPMFBetter,

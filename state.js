@@ -10,7 +10,7 @@ export function createInitialState(random) {
         salesSpend: 0,
         productPrice: 100,
         customerAcquisitionCost: 10,
-        cash: 500_000,
+        cash: 100_000,
         // product properties
         launchMaturity: 0.0135,
         productMaturity: 0,
@@ -117,9 +117,9 @@ export function gameTick(state, random) {
 
     // Phase 2: Development Phase
     const rawOutput = calculateOutput(state);
-    const { featureOutput, cleanUpOutput } = calculateDevelopmentAllocation(state, rawOutput);
+    const { featureOutput, cleanUpOutput, rawFeatureEffort } = calculateDevelopmentAllocation(state, rawOutput);
     state.productMaturity += featureOutput;
-    applyTechnicalDebt(state, featureOutput, cleanUpOutput);
+    applyTechnicalDebt(state, rawFeatureEffort, cleanUpOutput);
 
     // Detect launch transition and set market warm-up delay
     if (state.productMaturity >= state.launchMaturity && state.marketReadyMonth === null) {
@@ -187,7 +187,7 @@ export function calculateOutput(state) {
     }, 0);
     const n = state.employees.length;
     const communicationLines = (n * (n - 1)) / 2;
-    return collectiveProductivity * (1 - state.technicalDebt) * Math.max(0, 1 - communicationLines * 0.01);
+    return collectiveProductivity * (1 - state.technicalDebt) ** 2 * Math.max(0, 1 - communicationLines * 0.01);
 }
 
 export function calculateDevelopmentAllocation(state, rawOutput) {
@@ -195,9 +195,10 @@ export function calculateDevelopmentAllocation(state, rawOutput) {
     if (state.technicalDebt > state.technicalDebtTarget) {
         cleanUpFraction = Math.min(0.5, (state.technicalDebt - state.technicalDebtTarget) * 2);
     }
-    const featureOutput = (rawOutput * (1 - cleanUpFraction)) / MAGIC_PRODUCTIVITY_DIVIDER;
+    const rawFeatureEffort = rawOutput * (1 - cleanUpFraction);
+    const featureOutput = rawFeatureEffort / MAGIC_PRODUCTIVITY_DIVIDER;
     const cleanUpOutput = rawOutput * cleanUpFraction;
-    return { featureOutput, cleanUpOutput };
+    return { featureOutput, cleanUpOutput, rawFeatureEffort };
 }
 
 
@@ -229,8 +230,8 @@ export function applyReputationDrift(state, churnRate, organicUsers) {
     state.reputation = Math.max(0, Math.min(1, state.reputation));
 }
 
-export function applyTechnicalDebt(state, featureOutput, cleanUpOutput) {
-    const debtGrowth = featureOutput * 0.05;
+export function applyTechnicalDebt(state, rawFeatureEffort, cleanUpOutput) {
+    const debtGrowth = rawFeatureEffort * 0.01 * (1 + state.productMaturity * 5);
     const debtReduction = cleanUpOutput * 0.1;
     state.technicalDebt = Math.max(0, Math.min(0.5, state.technicalDebt - debtReduction + debtGrowth));
 }

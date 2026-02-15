@@ -10,7 +10,7 @@ The core tension: **grow fast enough to win, but not so recklessly that you go b
 
 ## 2. Core Fantasy & Theme
 
-You are a technical founder who just received seed funding. You have a product idea, one developer (yourself), and $500,000 in the bank. You need to build the product, launch it, acquire users, and grow into a successful SaaS business.
+You are a technical founder who just received seed funding. You have a product idea, one developer (yourself), and $100,000 in the bank. You need to build the product, launch it, acquire users, and grow into a successful SaaS business.
 
 The game captures the essential anxieties of startup life:
 - You never have perfect information about your own company
@@ -227,7 +227,7 @@ The game ends if cash drops to 0 or below.
 ```
 collectiveProductivity = Σ effectiveProductivity(employee)
 communicationLines = n × (n - 1) / 2      // Brooks's Law
-techDebtPenalty = 1 - technicalDebt
+techDebtPenalty = (1 - technicalDebt)²     // quadratic: debt compounds
 commPenalty = 1 - communicationLines × 0.01
 rawOutput = collectiveProductivity × techDebtPenalty × commPenalty
 ```
@@ -260,17 +260,19 @@ Feature output increases `productMaturity`. Cleanup output decreases `technicalD
 
 ### 7.3 Technical Debt
 
-Tech debt is the silent killer of SaaS companies.
+Tech debt is the silent killer of SaaS companies. The more you develop, the more it slows you down — compounding over time.
 
-**Natural Growth:** Every month that features are developed, tech debt creeps upward:
+**Natural Growth:** Every month that features are developed, tech debt creeps upward. Growth scales with raw feature effort and codebase size (product maturity):
 ```
-debtGrowth = featureOutput × 0.05    // 5% of feature work creates debt
+rawFeatureEffort = rawOutput × (1 - cleanUpFraction)
+debtGrowth = rawFeatureEffort × 0.01 × (1 + productMaturity × 5)
 ```
+At maturity 0, growth is 1% of effort per month. As the codebase grows, each unit of feature work creates more debt.
 
 **Cleanup:** When the team allocates effort to cleanup:
 ```
 debtReduction = cleanUpOutput × 0.1
-technicalDebt = max(0, technicalDebt - debtReduction + debtGrowth)
+technicalDebt = max(0, min(0.5, technicalDebt - debtReduction + debtGrowth))
 ```
 
 **Effects of High Tech Debt:**
@@ -587,7 +589,7 @@ These targets guide tuning. The game should be balanced so that:
 
 | Scenario | Expected Outcome |
 |----------|-----------------|
-| Solo founder, no hires, minimal sales spend | Can launch but grows very slowly. Survives ~24 months. |
+| Solo founder, no hires, minimal sales spend | Can launch but grows very slowly. With $100k runway, cash depletes to ~$30k by month 24; tech debt compounds. A struggle. |
 | 3-person team, moderate sales, balanced debt | Reaches ~100–200 users in 2 years depending on PMF. May need a pivot. Can win via lifestyle path. |
 | Aggressive hiring (8+), high sales spend | Either rockets to IPO in 3-4 years OR crashes from cash burn / debt / overhead. High risk, high reward. |
 | Neglect tech debt entirely | Fast early growth, then cascading crises after month 18. Usually fatal. |
@@ -602,7 +604,7 @@ These targets guide tuning. The game should be balanced so that:
 | Constant | Value | Purpose |
 |----------|-------|---------|
 | `MAGIC_PRODUCTIVITY_DIVIDER` | 333 | Scales raw output so maturity approaches 1 over ~5 years |
-| Starting cash | $500,000 | ~18 months runway with a small team |
+| Starting cash | $100,000 | ~33 months runway solo ($3k burn); ~11 months with 3-person team. Forces monetization. |
 | Base churn | 3%/month | Industry-realistic SaaS churn |
 | Base CAC | $10 | Base cost before PMF and price scaling |
 | Initial PMF range | [0.1, 0.5] | Most games start with poor-to-mediocre fit; effective CAC is 2–10× base |
