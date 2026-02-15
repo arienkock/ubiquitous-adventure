@@ -1,0 +1,18 @@
+---
+description: Development workflow rules for keeping documentation in sync and protecting architectural decisions
+alwaysApply: true
+---
+
+# Development Workflow
+
+## Documentation Must Stay Current
+
+`GAME_DESIGN.md` and `ARCHITECTURE.md` are living documents. Whenever a code change affects game mechanics, state shape, simulation logic, file structure, module responsibilities, or conventions described in either file, **update the relevant markdown file in the same change**.
+
+Do not defer documentation updates to a follow-up step.
+
+## Architecture Changes Require User Consent
+
+Before making a change that **breaks or contradicts** a convention established in `ARCHITECTURE.md` (e.g. adding a dependency, introducing a build step, changing the module layering, or replacing the in-browser test harness), **stop and ask the user for explicit approval** before proceeding.
+
+Non-breaking additions (new files that fit the existing structure, new exported functions in an existing module) do not require approval.
