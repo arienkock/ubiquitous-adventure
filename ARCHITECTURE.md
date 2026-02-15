@@ -43,9 +43,9 @@ GAME_DESIGN.md  Game design document
 
 Pure logic with no DOM access. Exports:
 
-- `createInitialState(random?)` — returns a plain object representing a new game. Optional `random` for deterministic PMF initialization.
-- `gameTick(state, random?)` — advances the simulation by one month in 5 phases: Card (stub), Development, Market, Finance, Drift. Optional `random` for deterministic tests (e.g. market warm-up delay). Sets `state.bankrupt = true` on bankruptcy.
-- `pivot(state, random?)` — re-rolls `productMarketFit` (75% chance of improvement), removes 80% of users, reduces reputation by 0.15, and resets `marketReadyMonth`.
+- `createInitialState(random?)` — returns a plain object representing a new game. Optional `random` for deterministic PMF and lifecycle initialization.
+- `gameTick(state, random?)` — advances the simulation by one month in 5 phases: Card (stub), Development, Market, Finance, Drift. Drift Phase applies PMF degradation, motivation drift, reputation drift. Optional `random` for deterministic tests (e.g. market warm-up delay). Sets `state.bankrupt = true` on bankruptcy.
+- `pivot(state, random?)` — re-rolls `productMarketFit` (75% chance of improvement), resets PMF lifecycle (new peak, fresh 5–15 year duration), removes 80% of users, reduces reputation by 0.15, and resets `marketReadyMonth`.
 - `addRandomDeveloper(state)` — adds a randomized employee.
 - `getUserCount(state)` — total paying users (derived from cohorts).
 - `getMRR(state)` — monthly recurring revenue (sum of cohort revenues).
@@ -57,6 +57,7 @@ Pure logic with no DOM access. Exports:
 - `calculateChurnRate(state)` / `calculateChurn(state)` — user churn from debt and reputation (price affects acquisition only, not churn).
 - `calculateOrganicUsers(state)` — word-of-mouth user acquisition post-launch.
 - `applyReputationDrift(state, churnRate, organicUsers)` — adjusts reputation based on product quality signals.
+- `applyPMFDegradation(state)` — reduces PMF linearly toward 0.1 over its lifecycle (5–15 years).
 - `applyMotivationDrift(state)` — background motivation changes (debt frustration, team size, tenure).
 - `calculateEmployeeProductivity(state, employee)` — effective productivity with onboarding ramp-up.
 

@@ -2,6 +2,7 @@ export const MAGIC_PRODUCTIVITY_DIVIDER = 333;
 
 export function createInitialState(random) {
     random = random || Math.random;
+    const productMarketFit = 0.1 + random() * 0.4;
     return {
         // time
         monthNumber: 0,
@@ -16,7 +17,9 @@ export function createInitialState(random) {
         productMaturity: 0,
         marketReadyMonth: null,
         // market fit (hidden) — 0.1 to 1.0; initialized in [0.1, 0.5]
-        productMarketFit: 0.1 + random() * 0.4,
+        productMarketFit,
+        pmfPeakValue: productMarketFit,
+        pmfLifecycleMonths: 60 + Math.floor(random() * 121), // 5–15 years
         // development
         technicalDebt: 0, // 0.0 to 0.5
         technicalDebtTarget: 0.3,
@@ -99,6 +102,9 @@ export function pivot(state, random) {
             ? 0.1 + random() * range
             : 0.1;
     }
+    // Reset PMF lifecycle (new market, fresh relevance timer)
+    state.pmfPeakValue = state.productMarketFit;
+    state.pmfLifecycleMonths = 60 + Math.floor(random() * 121);
     // Lose 80% of existing users
     const usersToLose = Math.floor(getUserCount(state) * 0.8);
     removeUsers(state, usersToLose);
@@ -146,6 +152,7 @@ export function gameTick(state, random) {
     // Phase 5: Drift Phase
     applyMotivationDrift(state);
     applyReputationDrift(state, churnRate, organicUsers);
+    applyPMFDegradation(state);
     for (const employee of state.employees) {
         employee.monthsEmployed++;
     }
@@ -228,6 +235,11 @@ export function applyReputationDrift(state, churnRate, organicUsers) {
     if (churnRate > 0.08) state.reputation -= 0.01;
     if (organicUsers > 0) state.reputation += 0.005;
     state.reputation = Math.max(0, Math.min(1, state.reputation));
+}
+
+export function applyPMFDegradation(state) {
+    const rate = (state.pmfPeakValue - 0.1) / state.pmfLifecycleMonths;
+    state.productMarketFit = Math.max(0.1, state.productMarketFit - rate);
 }
 
 export function applyTechnicalDebt(state, rawFeatureEffort, cleanUpOutput) {

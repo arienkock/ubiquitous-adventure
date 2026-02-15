@@ -70,7 +70,7 @@ Some values are intentionally kept completely invisible to the player. There is 
 
 | Value | What it represents | How the player infers it |
 |-------|--------------------|--------------------------|
-| **Product Market Fit** | How well the product matches market demand (0.1 to 1.0) | Observing how many users sales spend actually delivers |
+| **Product Market Fit** | How well the product matches market demand (0.1 to 1.0) | Observing how many users sales spend actually delivers; degrades over time (legacy products become dated) |
 
 ---
 
@@ -89,6 +89,8 @@ launchMaturity       — Product maturity threshold to launch (fixed at 0.0135)
 productMaturity      — How complete the product is (0 to ~1, uncapped but diminishing)
 marketReadyMonth     — First month when paid acquisition works (null until launch, then launchMonth + random 2–5)
 productMarketFit     — Hidden; how well product matches demand (0.1 to 1.0, initialized randomly in [0.1, 0.5])
+pmfPeakValue         — PMF at game start or last pivot (used for degradation rate)
+pmfLifecycleMonths   — Random 60–180; months until PMF reaches 0.1 (5–15 years)
 technicalDebt        — Codebase messiness (0.0 to 0.5)
 technicalDebtTarget  — Player's desired tech debt level; team auto-allocates cleanup effort
 cleanUpEffort        — Fraction of dev effort going to debt reduction (derived)
@@ -131,6 +133,7 @@ Each turn represents **one month**. The player can adjust their ongoing decision
    - Employee motivation drifts based on conditions (team size changes, overwork, events).
    - Tech debt drifts slightly upward from normal development activity.
    - Reputation adjusts based on product quality, uptime, and churn trends.
+   - PMF degrades linearly toward 0.1 over its lifecycle (5–15 years; see Section 7.6). Resets on pivot.
    - `monthsEmployed` increments for each employee.
 
 ---
@@ -184,6 +187,7 @@ A radical strategic move: change the product's direction to gamble for better pr
   - 75% chance: new value sampled uniformly from (currentPMF, 1.0] (guaranteed improvement)
   - 25% chance: new value sampled uniformly from [0.1, currentPMF) (guaranteed regression)
   - If PMF is already at the floor (0.1), the regression case stays at 0.1
+- **PMF lifecycle resets:** new peak and fresh 5–15 year lifecycle (product relevance timer restarts)
 - **Lose 80% of existing users** (removed proportionally from all cohorts — most customers don't want the new direction)
 - **Reputation -0.15** (clamped to 0; market sees instability)
 - **Market warm-up resets:** `marketReadyMonth` is set to `monthNumber + random(2–5)` (must re-establish market presence)
@@ -344,7 +348,18 @@ Price does not affect churn — existing users pay their locked-in signup price.
 
 The player never sees the exact churn rate. They only observe user count going up or down and must infer what's happening.
 
-### 7.6 Reputation
+### 7.6 PMF Degradation
+
+Legacy products become dated relative to competing products. PMF degrades linearly from its peak value down to 0.1 over a randomized lifecycle of 60–180 months (5–15 years).
+
+```
+rate = (pmfPeakValue - 0.1) / pmfLifecycleMonths
+productMarketFit = max(0.1, productMarketFit - rate)
+```
+
+Applied each tick in the Drift Phase. When the player pivots, the lifecycle resets: the new PMF becomes the new peak, and a fresh lifecycle duration (60–180 months) is rolled.
+
+### 7.7 Reputation
 
 Reputation is a hidden value (0.0 to 1.0) that represents the market's perception of the product. It is displayed as a fuzzy gauge.
 
@@ -608,6 +623,7 @@ These targets guide tuning. The game should be balanced so that:
 | Base churn | 3%/month | Industry-realistic SaaS churn |
 | Base CAC | $10 | Base cost before PMF and price scaling |
 | Initial PMF range | [0.1, 0.5] | Most games start with poor-to-mediocre fit; effective CAC is 2–10× base |
+| PMF lifecycle | 60–180 months | Random 5–15 years until PMF degrades to 0.1; resets on pivot |
 | Pivot improvement chance | 75% | Pivots are usually better, but not guaranteed |
 | Pivot user loss | 80% | Most users leave when the product direction changes |
 | Pivot reputation cost | -0.15 | Market penalizes instability |

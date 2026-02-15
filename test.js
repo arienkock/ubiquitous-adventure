@@ -1,4 +1,4 @@
-import { createInitialState, gameTick, calculateOutput, calculateEmployeeProductivity, calculateDevelopmentAllocation, applyTechnicalDebt, calculateChurn, calculateChurnRate, applyReputationDrift, calculateOrganicUsers, applyMotivationDrift, addUsers, removeUsers, getUserCount, getMRR, calculateNewUsers, pivot, MAGIC_PRODUCTIVITY_DIVIDER } from './state.js';
+import { createInitialState, gameTick, calculateOutput, calculateEmployeeProductivity, calculateDevelopmentAllocation, applyTechnicalDebt, calculateChurn, calculateChurnRate, applyReputationDrift, calculateOrganicUsers, applyMotivationDrift, addUsers, removeUsers, getUserCount, getMRR, calculateNewUsers, pivot, applyPMFDegradation, MAGIC_PRODUCTIVITY_DIVIDER } from './state.js';
 import { addEmployees, expect, runTests } from './test-utils.js';
 
 
@@ -394,6 +394,8 @@ function testSoloDevWith100kStruggles(state) {
     state.cash = 100_000;
     state.salesSpend = 0;
     state.productMarketFit = 0.3;
+    state.pmfPeakValue = 0.3;
+    state.pmfLifecycleMonths = 180; // slow degradation so test isn't affected
     state.technicalDebtTarget = 0.5; // not managing debt
     const random = () => 0.5; // deterministic for market warm-up
 
@@ -449,6 +451,36 @@ function testPMFReducesNewUserAcquisition(state) {
     expect(usersHighPMF).toBe(100);
 }
 
+function testPMFDegradesOverTime(state) {
+    state.productMarketFit = 0.5;
+    state.pmfPeakValue = 0.5;
+    state.pmfLifecycleMonths = 60; // rate = 0.4/60 ≈ 0.00667/month
+    const before = state.productMarketFit;
+    applyPMFDegradation(state);
+    expect(state.productMarketFit).toBeLessThan(before);
+    expect(state.productMarketFit).toBeCloseTo(0.5 - (0.5 - 0.1) / 60);
+}
+
+function testPMFDoesNotDegradeBelowMinimum(state) {
+    state.productMarketFit = 0.2;
+    state.pmfPeakValue = 0.2;
+    state.pmfLifecycleMonths = 10; // rate = 0.1/10 = 0.01/month
+    for (let i = 0; i < 20; i++) {
+        applyPMFDegradation(state);
+    }
+    expect(state.productMarketFit).toBe(0.1);
+}
+
+function testPivotResetsPMFLifecycle(state) {
+    state.productMarketFit = 0.3;
+    state.pmfPeakValue = 0.3;
+    state.pmfLifecycleMonths = 100;
+    const random = () => 0.5; // improvement branch, newPMF = 0.65, delay = 4, lifecycle = 120
+    pivot(state, random);
+    expect(state.pmfPeakValue).toBeCloseTo(0.65);
+    expect(state.pmfLifecycleMonths).toBe(120); // 60 + floor(0.5 * 121)
+}
+
 // --- Pivot ---
 
 function testPivotRerollsPMFBetter(state) {
@@ -466,8 +498,9 @@ function testPivotRerollsPMFWorse(state) {
     // First call: 0.8 (>= 0.75 → regression branch)
     // Second call: 0.5 for sampling: newPMF = 0.1 + 0.5 * (0.5 - 0.1) = 0.1 + 0.2 = 0.3
     // Third call: 0.5 for market delay
+    // Fourth call: 0.5 for pmfLifecycleMonths
     let callIndex = 0;
-    const values = [0.8, 0.5, 0.5];
+    const values = [0.8, 0.5, 0.5, 0.5];
     const random = () => values[callIndex++];
     pivot(state, random);
     expect(state.productMarketFit).toBeCloseTo(0.3);
@@ -512,8 +545,9 @@ function testPivotAtFloorPMFStaysAtFloor(state) {
     state.productMarketFit = 0.1;
     // First call: 0.8 (>= 0.75 → regression branch)
     // range = 0.1 - 0.1 = 0 → stays at 0.1
+    // Fourth call: pmfLifecycleMonths
     let callIndex = 0;
-    const values = [0.8, 0.5, 0.5];
+    const values = [0.8, 0.5, 0.5, 0.5];
     const random = () => values[callIndex++];
     pivot(state, random);
     expect(state.productMarketFit).toBe(0.1);
@@ -555,6 +589,9 @@ runTests(
     testSoloDevWith100kStruggles,
     testPMFInitializedInRange,
     testPMFReducesNewUserAcquisition,
+    testPMFDegradesOverTime,
+    testPMFDoesNotDegradeBelowMinimum,
+    testPivotResetsPMFLifecycle,
     testPivotRerollsPMFBetter,
     testPivotRerollsPMFWorse,
     testPivotRemoves80PercentOfUsers,
