@@ -168,10 +168,10 @@ function renderHistory() {
     : '<div class="dev-history-entry">No events yet. Click Next Month to advance.</div>';
 }
 
-function refreshAll(state) {
+function refreshAll(state, includeGauges = false) {
   renderHeader(state);
-  renderGauges(state);
-  renderEmployees(state, () => refreshAll(state));
+  if (includeGauges) renderGauges(state);
+  renderEmployees(state, () => refreshAll(state, false));
   renderHistory();
   const salesInput = document.getElementById('dev-sales-spend-input');
   const techInput = document.getElementById('dev-tech-debt-input');
@@ -244,18 +244,18 @@ export function initDevUI(state) {
     const usersBefore = getUserCount(state);
     gameTick(state);
     pushHistoryEntry(state.monthNumber, state.cash - cashBefore, getUserCount(state) - usersBefore);
-    refreshAll(state);
+    refreshAll(state, true);
   });
 
   document.getElementById('dev-add-developer-btn').addEventListener('click', () => {
     addRandomDeveloper(state);
-    refreshAll(state);
+    refreshAll(state, false);
   });
 
-  const onRefresh = () => refreshAll(state);
+  const onRefresh = () => refreshAll(state, false);
   bindNumberControl(state, 'dev-sales-spend-input', 'dev-sales-spend-minus', 'dev-sales-spend-plus', 'salesSpend', 0, null, SALES_SPEND_STEP, onRefresh);
   bindNumberControl(state, 'dev-product-price-input', 'dev-product-price-minus', 'dev-product-price-plus', 'productPrice', PRODUCT_PRICE_MIN, PRODUCT_PRICE_MAX, PRODUCT_PRICE_STEP, onRefresh);
   bindNumberControl(state, 'dev-tech-debt-input', 'dev-tech-debt-minus', 'dev-tech-debt-plus', 'technicalDebtTarget', TECH_DEBT_MIN, TECH_DEBT_MAX, 0.1, onRefresh);
 
-  refreshAll(state);
+  refreshAll(state, true);
 }
