@@ -61,10 +61,11 @@ State is a single mutable object passed by reference. There is no immutability l
 
 Imperative DOM rendering. Receives the state object and reads/writes it directly. Responsible for:
 
-- Building the initial HTML (injected into `#dev-ui`).
-- Rendering stats and employee lists.
-- Binding controls (buttons, number inputs) to state mutations.
-- Calling `gameTick()` on the "Tick" button.
+- Building the layout: header bar (month, cash, users, MRR, launch status), gauges panel (5-bar fuzzy gauges with ±1 noise), controls (sales spend, product price, tech debt target), team panel (employees with skill gauges, salary, fire), card area placeholder, history log, Next Month button.
+- Rendering gauges for Product Maturity, Tech Debt, Team Morale, Team Velocity, Product Reputation using the design-doc mapping (0–1 to 1–5 bars with noise).
+- Binding controls to state mutations.
+- Calling `gameTick()` on the Next Month button; tracking per-month history (delta cash, delta users).
+- Showing a bankruptcy overlay and disabling Next Month when `state.bankrupt` is true.
 
 ### test-utils.js — Test Harness
 
